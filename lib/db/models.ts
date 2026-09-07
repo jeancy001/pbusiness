@@ -1,6 +1,7 @@
 
 import type { Collection } from "mongodb"
 import { getDb } from "./mongodb"
+
 import type {
   Formation,
   LocalizedText,
@@ -40,10 +41,11 @@ export interface UserDoc {
 // FORMATIONS
 // ============================================================
 
-// Formations are stored using the same shape
-// the UI already consumes.
-export type FormationDoc =
-  Formation
+/**
+ * Formations use the same structure consumed
+ * by the application UI.
+ */
+export type FormationDoc = Formation
 
 // ============================================================
 // ENROLLMENTS
@@ -99,8 +101,25 @@ export interface ProjectDoc {
 // QUOTES
 // ============================================================
 
+export type QuoteStatus =
+  | "new"
+  | "reviewed"
+  | "approved"
+  | "rejected"
+
 export interface QuoteDoc {
   _id?: string
+
+  /**
+   * User associated with the project request,
+   * when the user is authenticated.
+   */
+  userId?: string
+
+  /**
+   * Project associated with this quote.
+   */
+  projectId?: string
 
   name: string
 
@@ -108,7 +127,18 @@ export interface QuoteDoc {
 
   service: string
 
+  /**
+   * Original budget text supplied by the client.
+   */
   budget: string
+
+  /**
+   * Final approved project amount in USD.
+   *
+   * Project payments must never use an amount
+   * supplied directly by the frontend.
+   */
+  amountUsd?: number
 
   deadline: string
 
@@ -116,12 +146,16 @@ export interface QuoteDoc {
 
   aiDraft?: string
 
-  status:
-    | "new"
-    | "reviewed"
-    | "quoted"
+  status: QuoteStatus
+
+  /**
+   * Date when the quote was approved.
+   */
+  approvedAt?: Date
 
   createdAt: Date
+
+  updatedAt?: Date
 }
 
 // ============================================================
@@ -132,6 +166,25 @@ export type PaymentProvider =
   | "pawapay"
 
 // ============================================================
+// PAYMENT KINDS
+// ============================================================
+
+export type PaymentKind =
+  | "formation"
+  | "subscription"
+  | "project"
+  | "event"
+
+// ============================================================
+// PAYMENT STATUS
+// ============================================================
+
+export type PaymentStatus =
+  | "pending"
+  | "success"
+  | "failed"
+
+// ============================================================
 // PAYMENTS
 // ============================================================
 
@@ -140,12 +193,13 @@ export interface PaymentDoc {
 
   /**
    * Internal unique payment reference.
-   * Also used as the PawaPay deposit reference.
+   *
+   * Also used as the PawaPay deposit ID.
    */
   reference: string
 
   /**
-   * The authenticated user, when available.
+   * Authenticated user when available.
    */
   userId?: string
 
@@ -157,15 +211,21 @@ export interface PaymentDoc {
   /**
    * What the customer is paying for.
    */
-  kind:
-    | "formation"
-    | "subscription"
-    | "project"
+  kind: PaymentKind
 
   /**
-   * Formation slug when applicable.
+   * Formation slug or event slug.
+   *
+   * For project payments, this can be the project ID.
    */
   targetSlug?: string
+
+  /**
+   * Quote associated with a project payment.
+   *
+   * Required when kind is "project".
+   */
+  quoteId?: string
 
   /**
    * Localized payment description.
@@ -173,88 +233,49 @@ export interface PaymentDoc {
   label: Localized
 
   // ==========================================================
-  // ORIGINAL PRODUCT PRICE
+  // ORIGINAL PRICE
   // ==========================================================
 
   /**
    * Original product price in USD.
-   *
-   * Example:
-   * $15 subscription
    */
   amountUsd: number
 
   // ==========================================================
-  // FINAL PAWAPAY PAYMENT
+  // FINAL PAYMENT AMOUNT
   // ==========================================================
 
   /**
-   * Final amount after USD conversion.
-   *
-   * This is the actual amount sent to PawaPay.
-   *
-   * Examples:
-   *
-   * 42000 CDF
-   * 1950 KES
-   * 55500 UGX
+   * Final converted amount sent to PawaPay.
    */
   amount: number
 
   /**
-   * Currency used for the PawaPay transaction.
-   *
-   * Examples:
-   *
-   * CDF
-   * KES
-   * UGX
-   * TZS
-   * GHS
-   * XAF
+   * Currency used for the transaction.
    */
   currency: string
 
   /**
-   * ISO 3166-1 alpha-2 customer country code.
-   *
-   * Examples:
-   *
-   * CD
-   * KE
-   * UG
-   * TZ
+   * ISO 3166-1 alpha-2 country code.
    */
   country: string
 
   /**
-   * USD → local currency exchange rate used
-   * when the payment was initiated.
-   *
-   * Example:
-   *
-   * 1 USD = 2800 CDF
+   * USD → local currency exchange rate.
    */
   exchangeRate?: number
 
   // ==========================================================
-  // MOBILE MONEY CUSTOMER
+  // MOBILE MONEY DETAILS
   // ==========================================================
 
   /**
-   * Customer phone number used for payment.
+   * Customer phone number.
    */
   phone?: string
 
   /**
-   * Mobile Money provider/network.
-   *
-   * Examples:
-   *
-   * AIRTEL
-   * ORANGE
-   * MPESA
-   * MTN
+   * Mobile Money network.
    */
   network?: string
 
@@ -262,19 +283,141 @@ export interface PaymentDoc {
   // PAYMENT STATUS
   // ==========================================================
 
-  status:
-    | "pending"
-    | "success"
-    | "failed"
+  status: PaymentStatus
 
   /**
-   * Reference returned by PawaPay.
+   * Provider payment reference.
    */
   providerRef?: string
 
   // ==========================================================
   // TIMESTAMPS
   // ==========================================================
+
+  createdAt: Date
+
+  updatedAt: Date
+}
+
+// ============================================================
+// EVENT TICKETS
+// ============================================================
+
+export type TicketStatus =
+  | "active"
+  | "used"
+  | "cancelled"
+
+export interface TicketDoc {
+  _id?: string
+
+  /**
+   * Public unique ticket code.
+   *
+   * Example:
+   *
+   * UNIKIN-2026-A8F92K
+   */
+  ticketCode: string
+
+  /**
+   * Event identifier.
+   */
+  eventSlug: string
+
+  /**
+   * Event name.
+   */
+  eventName: Localized
+
+  // ==========================================================
+  // STUDENT INFORMATION
+  // ==========================================================
+
+  /**
+   * Authenticated user ID when available.
+   */
+  userId?: string
+
+  /**
+   * Full name printed on the ticket.
+   */
+  studentName: string
+
+  /**
+   * Student email.
+   */
+  studentEmail?: string
+
+  /**
+   * University or institution.
+   */
+  institution?: string
+
+  // ==========================================================
+  // EVENT INFORMATION
+  // ==========================================================
+
+  /**
+   * Event date.
+   */
+  eventDate: Date
+
+  /**
+   * Optional event end date.
+   */
+  eventEndDate?: Date
+
+  /**
+   * Event duration.
+   */
+  formationDuration: string
+
+  /**
+   * Event location.
+   */
+  location: string
+
+  // ==========================================================
+  // PAYMENT
+  // ==========================================================
+
+  /**
+   * Payment reference associated with
+   * this ticket.
+   */
+  paymentReference: string
+
+  /**
+   * Original ticket price in USD.
+   */
+  amountUsd: number
+
+  /**
+   * Final amount paid in local currency.
+   */
+  amount: number
+
+  /**
+   * Payment currency.
+   */
+  currency: string
+
+  // ==========================================================
+  // TICKET STATUS
+  // ==========================================================
+
+  status: TicketStatus
+
+  /**
+   * Date when the ticket was generated.
+   */
+  issuedAt: Date
+
+  /**
+   * Date when the ticket was used.
+   */
+  usedAt?: Date
 
   createdAt: Date
 
@@ -298,7 +441,9 @@ export async function formations(): Promise<
 > {
   return (
     await getDb()
-  ).collection<FormationDoc>("formations")
+  ).collection<FormationDoc>(
+    "formations",
+  )
 }
 
 export async function enrollments(): Promise<
@@ -306,7 +451,9 @@ export async function enrollments(): Promise<
 > {
   return (
     await getDb()
-  ).collection<EnrollmentDoc>("enrollments")
+  ).collection<EnrollmentDoc>(
+    "enrollments",
+  )
 }
 
 export async function projects(): Promise<
@@ -314,7 +461,9 @@ export async function projects(): Promise<
 > {
   return (
     await getDb()
-  ).collection<ProjectDoc>("projects")
+  ).collection<ProjectDoc>(
+    "projects",
+  )
 }
 
 export async function quotes(): Promise<
@@ -322,7 +471,9 @@ export async function quotes(): Promise<
 > {
   return (
     await getDb()
-  ).collection<QuoteDoc>("quotes")
+  ).collection<QuoteDoc>(
+    "quotes",
+  )
 }
 
 export async function payments(): Promise<
@@ -330,6 +481,22 @@ export async function payments(): Promise<
 > {
   return (
     await getDb()
-  ).collection<PaymentDoc>("payments")
+  ).collection<PaymentDoc>(
+    "payments",
+  )
+}
+
+// ============================================================
+// TICKETS COLLECTION
+// ============================================================
+
+export async function tickets(): Promise<
+  Collection<TicketDoc>
+> {
+  return (
+    await getDb()
+  ).collection<TicketDoc>(
+    "tickets",
+  )
 }
 

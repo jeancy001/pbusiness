@@ -5,8 +5,10 @@ import Link from "next/link"
 
 import {
 CheckCircle2,
+Download,
 Loader2,
 Smartphone,
+Ticket,
 XCircle,
 } from "lucide-react"
 
@@ -38,6 +40,13 @@ SelectValue,
 // TYPES
 // ============================================================
 
+export type PaymentKind =
+| "formation"
+| "subscription"
+| "project"
+| "ticket"
+| "event"
+
 type Phase =
 | "form"
 | "processing"
@@ -56,16 +65,66 @@ networks: Record<string, string>
 
 type PaymentResponse = {
 ok: boolean
+
 provider?: "pawapay"
+
 reference?: string
+
 providerRef?: string
+
 status?: "pending" | "success" | "failed"
-amountUsd?: number
-amount?: number
+
+/**
+
+* Trusted USD amount calculated by the server.
+  */
+  amountUsd?: number
+
+/**
+
+* Final amount in the selected local currency.
+  */
+  amount?: number
+
 currency?: string
+
 country?: string
+
 exchangeRate?: number
+
+/**
+
+* Ticket code generated for event/ticket payments.
+  */
+  ticketCode?: string
+
 error?: string
+}
+
+// ============================================================
+// PROPS
+// ============================================================
+
+type CheckoutDialogProps = {
+kind: PaymentKind
+
+/**
+
+* Formation slug, project slug, ticket slug,
+* or event slug.
+  */
+  targetSlug?: string
+
+/**
+
+* Display-only fallback amount.
+*
+* The backend is ALWAYS the source of truth
+* for the actual amount charged.
+  */
+  amountUsd?: number
+
+trigger: React.ReactNode
 }
 
 // ============================================================
@@ -86,7 +145,6 @@ AIRTEL_COD: "Airtel Money",
 ORANGE_COD: "Orange Money",
 },
 },
-
 {
 code: "KE",
 name: "Kenya",
@@ -99,7 +157,6 @@ MPESA_KEN: "M-Pesa",
 AIRTEL_KEN: "Airtel Money",
 },
 },
-
 {
 code: "UG",
 name: "Uganda",
@@ -112,7 +169,6 @@ MTN_MOMO_UGA: "MTN Mobile Money",
 AIRTEL_UGA: "Airtel Money",
 },
 },
-
 {
 code: "TZ",
 name: "Tanzania",
@@ -121,12 +177,11 @@ symbol: "TSh",
 locale: "en-TZ",
 callingCode: "255",
 networks: {
-VODACOM_TZA: "M-Pesa",
+VODACOM_TZA: "Vodacom M-Pesa",
 AIRTEL_TZA: "Airtel Money",
 TIGO_TZA: "Tigo Pesa",
 },
 },
-
 {
 code: "RW",
 name: "Rwanda",
@@ -139,7 +194,6 @@ MTN_MOMO_RWA: "MTN MoMo",
 AIRTEL_RWA: "Airtel Money",
 },
 },
-
 {
 code: "GH",
 name: "Ghana",
@@ -153,7 +207,6 @@ VODAFONE_GHA: "Telecel Cash",
 AIRTELTIGO_GHA: "AirtelTigo Money",
 },
 },
-
 {
 code: "ZM",
 name: "Zambia",
@@ -167,7 +220,6 @@ AIRTEL_ZMB: "Airtel Money",
 ZAMTEL_ZMB: "Zamtel Money",
 },
 },
-
 {
 code: "CM",
 name: "Cameroon",
@@ -177,10 +229,9 @@ locale: "fr-CM",
 callingCode: "237",
 networks: {
 MTN_MOMO_CMR: "MTN Mobile Money",
-ORANGE_CMR: "Orange Money",
+ORANGE_COD: "Orange Money",
 },
 },
-
 {
 code: "CG",
 name: "Republic of the Congo",
@@ -193,7 +244,6 @@ MTN_MOMO_COG: "MTN Mobile Money",
 AIRTEL_COG: "Airtel Money",
 },
 },
-
 {
 code: "SN",
 name: "Senegal",
@@ -206,7 +256,6 @@ ORANGE_SEN: "Orange Money",
 WAVE_SEN: "Wave",
 },
 },
-
 {
 code: "CI",
 name: "Côte d'Ivoire",
@@ -229,44 +278,25 @@ MOOV_CIV: "Moov Money",
 function getFirstNetwork(
 paymentCountry: PaymentCountry,
 ): string {
-return (
-Object.keys(paymentCountry.networks)[0] ??
-""
-)
+return Object.keys(
+paymentCountry.networks,
+)[0] ?? ""
 }
 
-/**
+function normalizePhoneNumber(
+value: string,
+callingCode: string,
+): string {
+let digits = value.replace(/\D/g, "")
 
-* PawaPay requires digits only.
-*
-* Removes:
-* * -
-* * spaces
-* * hyphens
-* * parentheses
-* * dots
-*
-* Converts local numbers beginning with 0
-* into international format using the selected
-* country's calling code.
-  */
-  function normalizePhoneNumber(
-  value: string,
-  callingCode: string,
-  ): string {
-  let digits = value.replace(/\D/g, "")
-
-// Convert 00 international prefix.
 if (digits.startsWith("00")) {
 digits = digits.slice(2)
 }
 
-// Already in international format.
 if (digits.startsWith(callingCode)) {
 return digits
 }
 
-// Local number beginning with zero.
 if (digits.startsWith("0")) {
 digits = digits.slice(1)
 }
@@ -274,34 +304,45 @@ digits = digits.slice(1)
 return `${callingCode}${digits}`
 }
 
-/**
+function formatCurrency(
+amount: number,
+currency: string,
+locale: string,
+): string {
+const noDecimalCurrencies = [
+"CDF",
+"KES",
+"UGX",
+"TZS",
+"RWF",
+"XAF",
+"XOF",
+]
 
-* Mobile Money amounts should always
-* be displayed as whole numbers.
-*
-* This includes Kenya KES.
-  */
-  function formatCurrency(
-  amount: number,
-  currency: string,
-  locale: string,
-  ): string {
-  try {
-  return new Intl.NumberFormat(
-  locale,
-  {
-  style: "currency",
-  currency,
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 0,
-  },
-  ).format(Math.round(amount))
-  } catch {
-  return `${Math.round(
-     amount,
-   ).toLocaleString()} ${currency}`
-  }
-  }
+try {
+return new Intl.NumberFormat(
+locale,
+{
+style: "currency",
+currency,
+minimumFractionDigits:
+noDecimalCurrencies.includes(
+currency,
+)
+? 0
+: 2,
+maximumFractionDigits:
+noDecimalCurrencies.includes(
+currency,
+)
+? 0
+: 2,
+},
+).format(amount)
+} catch {
+return `${amount.toLocaleString()} ${currency}`
+}
+}
 
 // ============================================================
 // COMPONENT
@@ -312,19 +353,15 @@ kind,
 targetSlug,
 amountUsd,
 trigger,
-}: {
-kind: "formation" | "subscription" | "project"
-targetSlug?: string
-amountUsd: number
-trigger: React.ReactNode
-}) {
-const { t } = useI18n()
+}: CheckoutDialogProps) {
+const { t, locale } = useI18n()
 const { user } = useAuth()
 
-const [open, setOpen] = useState(false)
+const [open, setOpen] =
+useState(false)
 
 const [country, setCountry] =
-useState<string>("CD")
+useState("CD")
 
 const selectedCountry = useMemo(
 () =>
@@ -335,7 +372,7 @@ PAYMENT_COUNTRIES.find(
 )
 
 const [network, setNetwork] =
-useState<string>(() =>
+useState(() =>
 getFirstNetwork(
 PAYMENT_COUNTRIES[0],
 ),
@@ -350,13 +387,20 @@ useState<Phase>("form")
 const [error, setError] =
 useState<string | null>(null)
 
-const [paymentAmount, setPaymentAmount] =
-useState<number | null>(null)
+const [
+paymentAmount,
+setPaymentAmount,
+] = useState<number | null>(null)
 
 const [
 paymentCurrency,
 setPaymentCurrency,
 ] = useState<string | null>(null)
+
+const [
+serverAmountUsd,
+setServerAmountUsd,
+] = useState<number | null>(null)
 
 const [
 exchangeRate,
@@ -366,6 +410,46 @@ setExchangeRate,
 const [reference, setReference] =
 useState<string | null>(null)
 
+const [
+ticketCode,
+setTicketCode,
+] = useState<string | null>(null)
+
+// ==========================================================
+// DERIVED VALUES
+// ==========================================================
+
+const isTicketPayment =
+kind === "ticket" ||
+kind === "event"
+
+const isEventPayment =
+kind === "event"
+
+/**
+
+* Before the payment starts:
+* amountUsd is only a display value.
+*
+* After the backend responds:
+* serverAmountUsd becomes the trusted amount.
+  */
+  const displayAmountUsd =
+  serverAmountUsd ?? amountUsd ?? null
+
+const formattedPaidAmount =
+paymentAmount !== null &&
+paymentCurrency
+? formatCurrency(
+paymentAmount,
+paymentCurrency,
+selectedCountry.locale,
+)
+: null
+
+const phonePlaceholder =
+`+${selectedCountry.callingCode}...`
+
 // ==========================================================
 // COUNTRY CHANGE
 // ==========================================================
@@ -373,9 +457,7 @@ useState<string | null>(null)
 function handleCountryChange(
 value: string | null,
 ) {
-if (!value) {
-return
-}
+if (!value) return
 
 
 const nextCountry =
@@ -383,9 +465,7 @@ const nextCountry =
     (item) => item.code === value,
   )
 
-if (!nextCountry) {
-  return
-}
+if (!nextCountry) return
 
 setCountry(nextCountry.code)
 
@@ -396,6 +476,7 @@ setNetwork(
 setPhone("")
 setPaymentAmount(null)
 setPaymentCurrency(null)
+setServerAmountUsd(null)
 setExchangeRate(null)
 setError(null)
 
@@ -420,12 +501,11 @@ setNetwork(value)
 
 async function pollStatus(
 paymentReference: string,
-): Promise<"success" | "failed"> {
+): Promise<PaymentResponse> {
 for (let i = 0; i < 30; i++) {
 await new Promise<void>(
-(resolve) => {
-setTimeout(resolve, 2000)
-},
+(resolve) =>
+setTimeout(resolve, 2000),
 )
 
 
@@ -440,23 +520,27 @@ setTimeout(resolve, 2000)
     )
 
     const data =
-      (await response.json()) as {
-        status?: string
-      }
+      (await response.json()) as PaymentResponse
 
-    if (data.status === "success") {
-      return "success"
-    }
-
-    if (data.status === "failed") {
-      return "failed"
+    if (
+      data.status === "success" ||
+      data.status === "failed"
+    ) {
+      return data
     }
   } catch {
     // Continue polling.
   }
 }
 
-return "failed"
+return {
+  ok: false,
+  status: "failed",
+  error:
+    locale === "fr"
+      ? "La confirmation du paiement a expiré. Veuillez vérifier votre historique de paiement."
+      : "Payment confirmation timed out. Please check your payment history.",
+}
 
 
 }
@@ -466,16 +550,28 @@ return "failed"
 // ==========================================================
 
 async function handlePay() {
-const normalizedPhone =
-normalizePhoneNumber(
-phone,
-selectedCountry.callingCode,
+if (!user) {
+setError(
+locale === "fr"
+? "Veuillez vous connecter avant d'effectuer un paiement."
+: "Please log in before making a payment.",
 )
 
 
+  return
+}
+
+const normalizedPhone =
+  normalizePhoneNumber(
+    phone,
+    selectedCountry.callingCode,
+  )
+
 if (normalizedPhone.length < 8) {
   setError(
-    "Please enter a valid Mobile Money phone number.",
+    locale === "fr"
+      ? "Veuillez entrer un numéro Mobile Money valide."
+      : "Please enter a valid Mobile Money phone number.",
   )
 
   return
@@ -483,16 +579,32 @@ if (normalizedPhone.length < 8) {
 
 if (!network) {
   setError(
-    "Please select a Mobile Money network.",
+    locale === "fr"
+      ? "Veuillez sélectionner un réseau Mobile Money."
+      : "Please select a Mobile Money network.",
   )
 
   return
 }
 
 setError(null)
+setTicketCode(null)
+setReference(null)
+setPaymentAmount(null)
+setPaymentCurrency(null)
+setServerAmountUsd(null)
+setExchangeRate(null)
 setPhase("processing")
 
 try {
+  /**
+   * SECURITY:
+   *
+   * The frontend NEVER sends amountUsd.
+   *
+   * The backend determines the trusted price
+   * using kind + targetSlug.
+   */
   const response = await fetch(
     "/api/payments/initiate",
     {
@@ -505,16 +617,10 @@ try {
 
       body: JSON.stringify({
         kind,
-        targetSlug,
-
-        /**
-         * PawaPay-compatible number:
-         * digits only, international format.
-         */
+        targetSlug:
+          targetSlug || undefined,
         phone: normalizedPhone,
-
         network,
-
         country:
           selectedCountry.code,
       }),
@@ -530,6 +636,12 @@ try {
     data.reference ?? null,
   )
 
+  setServerAmountUsd(
+    typeof data.amountUsd === "number"
+      ? data.amountUsd
+      : null,
+  )
+
   setPaymentAmount(
     typeof data.amount === "number"
       ? data.amount
@@ -539,7 +651,7 @@ try {
   setPaymentCurrency(
     typeof data.currency === "string"
       ? data.currency
-      : selectedCountry.currency,
+      : null,
   )
 
   setExchangeRate(
@@ -554,49 +666,133 @@ try {
   ) {
     throw new Error(
       data.error ??
-        "Unable to initiate the payment.",
+        (
+          locale === "fr"
+            ? "Impossible d'initialiser le paiement."
+            : "Unable to initiate the payment."
+        ),
     )
   }
 
+  // ======================================================
+  // IMMEDIATE SUCCESS
+  // ======================================================
+
   if (data.status === "success") {
+    setTicketCode(
+      data.ticketCode ?? null,
+    )
+
     setPhase("success")
+
     return
   }
+
+  // ======================================================
+  // IMMEDIATE FAILURE
+  // ======================================================
 
   if (data.status === "failed") {
     throw new Error(
       data.error ??
-        "The payment was rejected.",
+        (
+          locale === "fr"
+            ? "Le paiement a été refusé."
+            : "The payment was rejected."
+        ),
     )
   }
 
   if (!data.reference) {
     throw new Error(
-      "Payment reference was not returned.",
+      locale === "fr"
+        ? "La référence du paiement n'a pas été retournée."
+        : "Payment reference was not returned.",
     )
   }
 
-  const finalStatus =
+  // ======================================================
+  // WAIT FOR CONFIRMATION
+  // ======================================================
+
+  const finalPayment =
     await pollStatus(
       data.reference,
     )
 
-  setPhase(
-    finalStatus === "success"
-      ? "success"
-      : "failed",
-  )
-
-  if (finalStatus === "failed") {
-    setError(
-      "The payment was not completed. Please try again.",
+  /**
+   * Update only with values returned
+   * by the backend.
+   */
+  if (
+    typeof finalPayment.amount ===
+    "number"
+  ) {
+    setPaymentAmount(
+      finalPayment.amount,
     )
   }
+
+  if (
+    typeof finalPayment.currency ===
+    "string"
+  ) {
+    setPaymentCurrency(
+      finalPayment.currency,
+    )
+  }
+
+  if (
+    typeof finalPayment.amountUsd ===
+    "number"
+  ) {
+    setServerAmountUsd(
+      finalPayment.amountUsd,
+    )
+  }
+
+  if (
+    typeof finalPayment.exchangeRate ===
+    "number"
+  ) {
+    setExchangeRate(
+      finalPayment.exchangeRate,
+    )
+  }
+
+  if (
+    finalPayment.status ===
+    "success"
+  ) {
+    setTicketCode(
+      finalPayment.ticketCode ??
+        null,
+    )
+
+    setPhase("success")
+
+    return
+  }
+
+  setError(
+    finalPayment.error ??
+      (
+        locale === "fr"
+          ? "Le paiement n'a pas été effectué."
+          : "The payment was not completed."
+      ),
+  )
+
+  setPhase("failed")
 } catch (error) {
   setError(
     error instanceof Error
       ? error.message
-      : "Payment failed.",
+      : (
+          locale === "fr"
+            ? "Le paiement a échoué."
+            : "Payment failed."
+        ),
   )
 
   setPhase("failed")
@@ -614,26 +810,52 @@ setPhase("form")
 setError(null)
 setPaymentAmount(null)
 setPaymentCurrency(null)
+setServerAmountUsd(null)
 setExchangeRate(null)
 setReference(null)
+setTicketCode(null)
 }
 
 // ==========================================================
-// DISPLAY AMOUNT
+// TEXT HELPERS
 // ==========================================================
 
-const formattedPaidAmount =
-paymentAmount !== null &&
-paymentCurrency
-? formatCurrency(
-paymentAmount,
-paymentCurrency,
-selectedCountry.locale,
-)
-: null
+const paymentTitle =
+isEventPayment
+? locale === "fr"
+? "Paiement de l'événement"
+: "Event payment"
+: kind === "ticket"
+? locale === "fr"
+? "Paiement du billet"
+: "Ticket payment"
+: t("checkout.title")
 
-const phonePlaceholder =
-`${selectedCountry.callingCode}...`
+const paymentDescription =
+isEventPayment
+? locale === "fr"
+? "Payez votre participation à l'événement en toute sécurité avec Mobile Money."
+: "Pay for your event participation securely using Mobile Money."
+: isTicketPayment
+? locale === "fr"
+? "Payez votre billet en toute sécurité avec Mobile Money."
+: "Pay for your ticket securely using Mobile Money."
+: locale === "fr"
+? "Payez en toute sécurité avec Mobile Money."
+: "Pay securely using Mobile Money."
+
+const priceLabel =
+isEventPayment
+? locale === "fr"
+? "Prix de participation"
+: "Participation price"
+: kind === "ticket"
+? locale === "fr"
+? "Prix du billet"
+: "Ticket price"
+: locale === "fr"
+? "Prix"
+: "Price"
 
 // ==========================================================
 // RENDER
@@ -660,14 +882,17 @@ setOpen(value)
   <DialogContent className="sm:max-w-md">
     <DialogHeader>
       <DialogTitle className="flex items-center gap-2">
-        <Smartphone className="size-5 text-primary" />
+        {isTicketPayment ? (
+          <Ticket className="size-5 text-primary" />
+        ) : (
+          <Smartphone className="size-5 text-primary" />
+        )}
 
-        {t("checkout.title")}
+        {paymentTitle}
       </DialogTitle>
 
       <DialogDescription>
-        Pay securely using PawaPay
-        Mobile Money.
+        {paymentDescription}
       </DialogDescription>
     </DialogHeader>
 
@@ -686,25 +911,37 @@ setOpen(value)
         </p>
       )}
 
+    {/* =====================================================
+        PAYMENT FORM
+    ====================================================== */}
+
     {phase === "form" && (
       <div className="flex flex-col gap-4">
-        {/* ORIGINAL PRICE */}
+        {displayAmountUsd !== null && (
+          <div className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-4 py-3">
+            <span className="text-sm text-muted-foreground">
+              {priceLabel}
+            </span>
 
-        <div className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-4 py-3">
-          <span className="text-sm text-muted-foreground">
-            Original price
-          </span>
+            <span className="font-heading text-xl font-bold">
+              ${displayAmountUsd.toFixed(2)} USD
+            </span>
+          </div>
+        )}
 
-          <span className="font-heading text-xl font-bold">
-            ${amountUsd.toFixed(2)} USD
-          </span>
-        </div>
+        <p className="text-xs text-muted-foreground">
+          {locale === "fr"
+            ? "Le montant final dans votre devise locale sera calculé et validé de manière sécurisée par le serveur."
+            : "The final amount in your local currency will be securely calculated and validated by the server."}
+        </p>
 
         {/* COUNTRY */}
 
         <div className="grid gap-2">
           <Label>
-            Country
+            {locale === "fr"
+              ? "Pays"
+              : "Country"}
           </Label>
 
           <Select
@@ -724,8 +961,7 @@ setOpen(value)
                     key={item.code}
                     value={item.code}
                   >
-                    {item.name} —{" "}
-                    {item.currency}
+                    {item.name} — {item.currency}
                   </SelectItem>
                 ),
               )}
@@ -733,11 +969,13 @@ setOpen(value)
           </Select>
         </div>
 
-        {/* PAYMENT CURRENCY */}
+        {/* CURRENCY */}
 
         <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
           <div className="text-xs text-muted-foreground">
-            Payment currency
+            {locale === "fr"
+              ? "Devise de paiement"
+              : "Payment currency"}
           </div>
 
           <div className="mt-1 text-lg font-semibold">
@@ -746,9 +984,9 @@ setOpen(value)
           </div>
 
           <p className="mt-1 text-xs text-muted-foreground">
-            Your USD price will be converted
-            to {selectedCountry.currency} on
-            the server.
+            {locale === "fr"
+              ? "Le montant exact sera confirmé avant la demande de paiement."
+              : "The exact amount will be confirmed before the payment request."}
           </p>
         </div>
 
@@ -756,7 +994,9 @@ setOpen(value)
 
         <div className="grid gap-2">
           <Label>
-            Payment provider
+            {locale === "fr"
+              ? "Fournisseur de paiement"
+              : "Payment provider"}
           </Label>
 
           <div className="flex items-center gap-3 rounded-md border px-3 py-3">
@@ -768,7 +1008,7 @@ setOpen(value)
               </div>
 
               <div className="text-xs text-muted-foreground">
-                Mobile Money payment
+                Mobile Money
               </div>
             </div>
           </div>
@@ -826,13 +1066,15 @@ setOpen(value)
                 event.target.value,
               )
             }
-            placeholder={phonePlaceholder}
+            placeholder={
+              phonePlaceholder
+            }
           />
 
           <p className="text-xs text-muted-foreground">
-            Enter your number with or without
-            the country code. Spaces and "+"
-            are automatically removed.
+            {locale === "fr"
+              ? "Entrez votre numéro avec ou sans indicatif du pays."
+              : "Enter your number with or without the country code."}
           </p>
         </div>
 
@@ -842,17 +1084,27 @@ setOpen(value)
           size="lg"
           onClick={handlePay}
           disabled={
+            !user ||
             phone.trim().length < 6 ||
             !network
           }
         >
-          {t("checkout.pay")}{" "}
-          ${amountUsd.toFixed(2)}
+          {isEventPayment
+            ? locale === "fr"
+              ? "Payer ma participation"
+              : "Pay for my participation"
+            : kind === "ticket"
+              ? locale === "fr"
+                ? "Acheter mon billet"
+                : "Buy my ticket"
+              : t("checkout.pay")}
         </Button>
       </div>
     )}
 
-    {/* PROCESSING */}
+    {/* =====================================================
+        PROCESSING
+    ====================================================== */}
 
     {phase === "processing" && (
       <div className="flex flex-col items-center gap-4 py-8 text-center">
@@ -865,7 +1117,9 @@ setOpen(value)
         {formattedPaidAmount && (
           <div className="rounded-lg bg-muted px-4 py-3 text-sm">
             <div className="text-xs text-muted-foreground">
-              Payment amount
+              {locale === "fr"
+                ? "Montant à payer"
+                : "Payment amount"}
             </div>
 
             <strong className="mt-1 block text-base">
@@ -882,20 +1136,32 @@ setOpen(value)
       </div>
     )}
 
-    {/* SUCCESS */}
+    {/* =====================================================
+        SUCCESS
+    ====================================================== */}
 
     {phase === "success" && (
       <div className="flex flex-col items-center gap-4 py-8 text-center">
         <CheckCircle2 className="size-12 text-success" />
 
         <p className="font-medium">
-          {t("checkout.success")}
+          {isEventPayment
+            ? locale === "fr"
+              ? "Paiement confirmé ! Votre participation à l'événement est enregistrée."
+              : "Payment confirmed! Your event participation is registered."
+            : kind === "ticket"
+              ? locale === "fr"
+                ? "Paiement confirmé ! Votre billet est disponible."
+                : "Payment confirmed! Your ticket is available."
+              : t("checkout.success")}
         </p>
 
         {formattedPaidAmount && (
           <div className="rounded-lg bg-muted px-4 py-3 text-sm">
             <div className="text-xs text-muted-foreground">
-              Paid amount
+              {locale === "fr"
+                ? "Montant payé"
+                : "Paid amount"}
             </div>
 
             <strong className="mt-1 block text-base">
@@ -904,16 +1170,14 @@ setOpen(value)
           </div>
         )}
 
-        {exchangeRate !== null && (
-          <p className="text-xs text-muted-foreground">
-            Exchange rate used: 1 USD ={" "}
-            {Math.round(
-              exchangeRate,
-            ).toLocaleString()}{" "}
-            {paymentCurrency ??
-              selectedCountry.currency}
-          </p>
-        )}
+        {exchangeRate !== null &&
+          paymentCurrency && (
+            <p className="text-xs text-muted-foreground">
+              1 USD ={" "}
+              {exchangeRate.toLocaleString()}{" "}
+              {paymentCurrency}
+            </p>
+          )}
 
         {reference && (
           <p className="text-xs text-muted-foreground">
@@ -921,20 +1185,63 @@ setOpen(value)
           </p>
         )}
 
-        <Button
-          asChild
-          className="mt-2 w-full"
-        >
-          <Link href="/dashboard/student">
-            {t(
-              "checkout.goToDashboard",
-            )}
-          </Link>
-        </Button>
+        {/* EVENT OR TICKET DOWNLOAD */}
+
+        {isTicketPayment &&
+          ticketCode && (
+            <Button
+              asChild
+              className="mt-2 w-full gap-2"
+            >
+              <a
+                href={`/api/tickets/${encodeURIComponent(
+                  ticketCode,
+                )}/pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Download className="size-4" />
+
+                {locale === "fr"
+                  ? "Télécharger mon billet PDF"
+                  : "Download my ticket PDF"}
+              </a>
+            </Button>
+          )}
+
+        {!isTicketPayment && (
+          <Button
+            asChild
+            className="mt-2 w-full"
+          >
+            <Link href="/dashboard/student">
+              {t(
+                "checkout.goToDashboard",
+              )}
+            </Link>
+          </Button>
+        )}
+
+        {isTicketPayment &&
+          !ticketCode && (
+            <Button
+              asChild
+              variant="outline"
+              className="mt-2 w-full"
+            >
+              <Link href="/dashboard/student">
+                {locale === "fr"
+                  ? "Voir mon tableau de bord"
+                  : "View my dashboard"}
+              </Link>
+            </Button>
+          )}
       </div>
     )}
 
-    {/* FAILED */}
+    {/* =====================================================
+        FAILED
+    ====================================================== */}
 
     {phase === "failed" && (
       <div className="flex flex-col items-center gap-4 py-8 text-center">
@@ -956,7 +1263,9 @@ setOpen(value)
           className="mt-2 w-full"
           onClick={reset}
         >
-          Try again
+          {locale === "fr"
+            ? "Réessayer"
+            : "Try again"}
         </Button>
       </div>
     )}
