@@ -1,153 +1,709 @@
+
 import "server-only"
-import type { PaymentProvider } from "@/lib/db/models"
+
+// ============================================================
+// TYPES
+// ============================================================
 
 export type InitiateInput = {
+  /**
+   * Unique payment/deposit reference.
+   */
   reference: string
+
+  /**
+   * Original product price in USD.
+   */
   amountUsd: number
-  currency: string
+
+  /**
+   * Customer ISO 3166-1 alpha-2 country code.
+   */
+  country: string
+
+  /**
+   * Customer phone number in international format.
+   */
   phone: string
+
+  /**
+   * Mobile Money provider/network.
+   */
   network?: string
-  description: string
+
+  /**
+   * Internal payment description.
+   *
+   * This is NOT sent to the PawaPay API.
+   */
+  description?: string
 }
 
 export type InitiateResult = {
   ok: boolean
   status: "pending" | "success" | "failed"
+
   providerRef?: string
   error?: string
+
+  amountUsd?: number
+  amount?: number
+  currency?: string
+  exchangeRate?: number
+  country?: string
 }
 
-// ---- PawaPay (V2 REST) --------------------------------------------------
-// Docs: POST {base}/v2/deposits with a UUIDv4 depositId. Final status via
-// polling GET /v2/deposits/{id} or webhooks.
-
-function pawapayBase() {
-  return process.env.PAWAPAY_BASE_URL || "https://api.sandbox.pawapay.io"
+type CurrencyConfig = {
+  currency: string
+  decimals: number
+  minimumAmount: number
 }
 
-export function pawapayConfigured() {
-  return Boolean(process.env.PAWAPAY_API_TOKEN)
+// ============================================================
+// COUNTRY → CURRENCY CONFIGURATION
+// ============================================================
+
+const COUNTRY_CURRENCIES: Record<
+  string,
+  CurrencyConfig
+> = {
+  CD: {
+    currency: "CDF",
+    decimals: 0,
+    minimumAmount: 1,
+  },
+
+  KE: {
+    currency: "KES",
+    decimals: 2,
+    minimumAmount: 1,
+  },
+
+  UG: {
+    currency: "UGX",
+    decimals: 0,
+    minimumAmount: 1,
+  },
+
+  TZ: {
+    currency: "TZS",
+    decimals: 0,
+    minimumAmount: 1,
+  },
+
+  RW: {
+    currency: "RWF",
+    decimals: 0,
+    minimumAmount: 1,
+  },
+
+  GH: {
+    currency: "GHS",
+    decimals: 2,
+    minimumAmount: 1,
+  },
+
+  ZM: {
+    currency: "ZMW",
+    decimals: 2,
+    minimumAmount: 1,
+  },
+
+  CM: {
+    currency: "XAF",
+    decimals: 0,
+    minimumAmount: 1,
+  },
+
+  CG: {
+    currency: "XAF",
+    decimals: 0,
+    minimumAmount: 1,
+  },
+
+  SN: {
+    currency: "XOF",
+    decimals: 0,
+    minimumAmount: 1,
+  },
+
+  CI: {
+    currency: "XOF",
+    decimals: 0,
+    minimumAmount: 1,
+  },
 }
 
-async function initiatePawapay(input: InitiateInput): Promise<InitiateResult> {
-  const res = await fetch(`${pawapayBase()}/v2/deposits`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.PAWAPAY_API_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      depositId: input.reference,
-      amount: String(input.amountUsd),
-      currency: input.currency,
-      payer: {
-        type: "MMO",
-        accountDetails: {
-          phoneNumber: input.phone,
-          provider: input.network,
-        },
-      },
-    }),
-  })
+// ============================================================
+// PAWAPAY CONFIGURATION
+// ============================================================
 
-  const data = (await res.json().catch(() => ({}))) as { status?: string; depositId?: string; message?: string }
-  if (!res.ok) {
-    return { ok: false, status: "failed", error: data.message || `PawaPay error ${res.status}` }
+function pawapayBase(): string {
+  return (
+    process.env.PAWAPAY_BASE_URL?.trim() ||
+    "https://api.sandbox.pawapay.io"
+  ).replace(/\/$/, "")
+}
+
+function pawapayToken(): string {
+  return (
+    process.env.PAWAPAY_API_TOKEN?.trim() ||
+    ""
+  )
+}
+
+export function pawapayConfigured(): boolean {
+  return Boolean(pawapayToken())
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+function normalizeCountry(
+  country: string,
+): string {
+  return country.trim().toUpperCase()
+}
+
+function getCurrencyConfig(
+  country: string,
+): CurrencyConfig | null {
+  return COUNTRY_CURRENCIES[country] ?? null
+}
+
+function normalizePhone(
+  phone: string,
+): string {
+  return phone
+    .trim()
+    .replace(/[^\d+]/g, "")
+}
+
+// ============================================================
+// EXCHANGE RATE
+// ============================================================
+
+async function getExchangeRate(
+  currency: string,
+): Promise<number> {
+  if (currency === "USD") {
+    return 1
   }
-  // ACCEPTED / SUBMITTED => still processing; COMPLETED => success; others => failed.
-  const s = (data.status || "").toUpperCase()
-  const status = s === "COMPLETED" ? "success" : s === "FAILED" || s === "REJECTED" ? "failed" : "pending"
-  return { ok: true, status, providerRef: data.depositId ?? input.reference }
-}
 
-async function checkPawapay(reference: string): Promise<InitiateResult> {
-  const res = await fetch(`${pawapayBase()}/v2/deposits/${reference}`, {
-    headers: { Authorization: `Bearer ${process.env.PAWAPAY_API_TOKEN}` },
-  })
-  const data = (await res.json().catch(() => ({}))) as { status?: string; data?: { status?: string } }
-  const s = (data.status || data.data?.status || "").toUpperCase()
-  const status = s === "COMPLETED" ? "success" : s === "FAILED" || s === "REJECTED" ? "failed" : "pending"
-  return { ok: true, status, providerRef: reference }
-}
+  const environmentKey =
+    `FX_USD_${currency}`
 
-// ---- AvadaPay (configurable REST adapter) -------------------------------
-// AvadaPay has no public API spec; this adapter targets a generic
-// deposit/collect endpoint and is driven entirely by env config so the real
-// credentials + endpoint can be plugged in without code changes.
+  const value =
+    process.env[environmentKey]
 
-function avadapayBase() {
-  return process.env.AVADAPAY_BASE_URL || ""
-}
+  if (value) {
+    const rate = Number(value)
 
-export function avadapayConfigured() {
-  return Boolean(process.env.AVADAPAY_API_KEY && process.env.AVADAPAY_BASE_URL)
-}
-
-async function initiateAvadapay(input: InitiateInput): Promise<InitiateResult> {
-  const res = await fetch(`${avadapayBase()}/collect`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.AVADAPAY_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      reference: input.reference,
-      amount: input.amountUsd,
-      currency: input.currency,
-      phone: input.phone,
-      network: input.network,
-      description: input.description,
-    }),
-  })
-  const data = (await res.json().catch(() => ({}))) as {
-    status?: string
-    transactionId?: string
-    message?: string
+    if (
+      Number.isFinite(rate) &&
+      rate > 0
+    ) {
+      return rate
+    }
   }
-  if (!res.ok) {
-    return { ok: false, status: "failed", error: data.message || `AvadaPay error ${res.status}` }
+
+  throw new Error(
+    `Exchange rate unavailable for USD → ${currency}. ` +
+      `Please configure ${environmentKey}.`,
+  )
+}
+
+// ============================================================
+// AMOUNT CONVERSION
+// ============================================================
+
+function convertAmount(
+  amountUsd: number,
+  exchangeRate: number,
+  config: CurrencyConfig,
+): number {
+  if (
+    !Number.isFinite(amountUsd) ||
+    amountUsd <= 0
+  ) {
+    throw new Error(
+      "Payment amount must be greater than zero.",
+    )
   }
-  const s = (data.status || "").toLowerCase()
-  const status = s === "success" || s === "completed" ? "success" : s === "failed" ? "failed" : "pending"
-  return { ok: true, status, providerRef: data.transactionId ?? input.reference }
+
+  if (
+    !Number.isFinite(exchangeRate) ||
+    exchangeRate <= 0
+  ) {
+    throw new Error(
+      "Invalid exchange rate.",
+    )
+  }
+
+  const converted =
+    amountUsd * exchangeRate
+
+  const amount = Number(
+    converted.toFixed(config.decimals),
+  )
+
+  return Math.max(
+    amount,
+    config.minimumAmount,
+  )
 }
 
-// ---- Dispatch -----------------------------------------------------------
+// ============================================================
+// STATUS MAPPING
+// ============================================================
 
-export function providerConfigured(provider: PaymentProvider) {
-  return provider === "pawapay" ? pawapayConfigured() : avadapayConfigured()
+function normalizeStatus(
+  rawStatus?: string,
+): InitiateResult["status"] {
+  const status =
+    rawStatus
+      ?.trim()
+      .toUpperCase()
+
+  switch (status) {
+    case "COMPLETED":
+    case "SUCCESS":
+      return "success"
+
+    case "FAILED":
+    case "REJECTED":
+    case "CANCELLED":
+    case "EXPIRED":
+      return "failed"
+
+    case "ACCEPTED":
+    case "PENDING":
+    case "PROCESSING":
+    case "INITIATED":
+      return "pending"
+
+    default:
+      return "pending"
+  }
 }
+
+// ============================================================
+// INITIATE PAWAPAY DEPOSIT
+// ============================================================
 
 export async function initiatePayment(
-  provider: PaymentProvider,
   input: InitiateInput,
 ): Promise<InitiateResult> {
-  // Simulation fallback: if the provider isn't configured yet, mark the
-  // payment as pending so the UX flow works end-to-end in preview.
-  if (!providerConfigured(provider)) {
-    return { ok: true, status: "pending", providerRef: `SIMULATED-${input.reference}` }
+  if (!pawapayConfigured()) {
+    return {
+      ok: false,
+      status: "failed",
+      error:
+        "PawaPay is not configured. Please configure PAWAPAY_API_TOKEN.",
+    }
   }
-  return provider === "pawapay" ? initiatePayment_pawapay(input) : initiateAvadapay(input)
+
+  try {
+    // ========================================================
+    // COUNTRY
+    // ========================================================
+
+    const country =
+      normalizeCountry(input.country)
+
+    const currencyConfig =
+      getCurrencyConfig(country)
+
+    if (!currencyConfig) {
+      return {
+        ok: false,
+        status: "failed",
+        country,
+        error:
+          `Payments are not currently supported for country "${country}".`,
+      }
+    }
+
+    // ========================================================
+    // PHONE
+    // ========================================================
+
+    const phone =
+      normalizePhone(input.phone)
+
+    if (phone.length < 6) {
+      return {
+        ok: false,
+        status: "failed",
+        country,
+        error:
+          "Please provide a valid phone number.",
+      }
+    }
+
+    // ========================================================
+    // EXCHANGE RATE
+    // ========================================================
+
+    const exchangeRate =
+      await getExchangeRate(
+        currencyConfig.currency,
+      )
+
+    // ========================================================
+    // USD → LOCAL CURRENCY
+    // ========================================================
+
+    const amount =
+      convertAmount(
+        input.amountUsd,
+        exchangeRate,
+        currencyConfig,
+      )
+
+    console.log(
+      "PawaPay payment conversion",
+      {
+        reference: input.reference,
+        country,
+        amountUsd: input.amountUsd,
+        currency: currencyConfig.currency,
+        exchangeRate,
+        amount,
+      },
+    )
+
+    // ========================================================
+    // CREATE PAWAPAY REQUEST
+    //
+    // IMPORTANT:
+    // Only supported PawaPay API parameters are sent.
+    //
+    // `description` is deliberately NOT included.
+    // ========================================================
+
+    const depositRequest = {
+      depositId: input.reference,
+
+      amount: String(amount),
+
+      currency:
+        currencyConfig.currency,
+
+      payer: {
+        type: "MMO",
+
+        accountDetails: {
+          phoneNumber: phone,
+
+          ...(input.network
+            ? {
+                provider:
+                  input.network.trim(),
+              }
+            : {}),
+        },
+      },
+    }
+
+    console.log(
+      "PawaPay deposit request",
+      {
+        ...depositRequest,
+
+        payer: {
+          ...depositRequest.payer,
+
+          accountDetails: {
+            ...depositRequest.payer
+              .accountDetails,
+
+            phoneNumber:
+              "[REDACTED]",
+          },
+        },
+      },
+    )
+
+    // ========================================================
+    // SEND DEPOSIT REQUEST
+    // ========================================================
+
+    const response =
+      await fetch(
+        `${pawapayBase()}/v2/deposits`,
+        {
+          method: "POST",
+
+          headers: {
+            Authorization:
+              `Bearer ${pawapayToken()}`,
+
+            "Content-Type":
+              "application/json",
+
+            Accept:
+              "application/json",
+          },
+
+          body: JSON.stringify(
+            depositRequest,
+          ),
+
+          cache: "no-store",
+        },
+      )
+
+    const rawText =
+      await response.text()
+
+    let data: {
+      status?: string
+      depositId?: string
+      message?: string
+      error?: string
+      failureReason?: {
+        failureCode?: string
+        failureMessage?: string
+      }
+    } = {}
+
+    try {
+      data =
+        rawText
+          ? JSON.parse(rawText)
+          : {}
+    } catch {
+      console.error(
+        "PawaPay returned invalid JSON:",
+        rawText,
+      )
+    }
+
+    // ========================================================
+    // HANDLE PAWAPAY ERROR
+    // ========================================================
+
+    if (!response.ok) {
+      console.error(
+        "PawaPay initiate error:",
+        response.status,
+        data,
+      )
+
+      const failureMessage =
+        data.failureReason?.failureMessage
+
+      const failureCode =
+        data.failureReason?.failureCode
+
+      return {
+        ok: false,
+        status: "failed",
+
+        amountUsd:
+          input.amountUsd,
+
+        amount,
+
+        currency:
+          currencyConfig.currency,
+
+        exchangeRate,
+
+        country,
+
+        providerRef:
+          data.depositId ||
+          input.reference,
+
+        error:
+          failureMessage ||
+          data.message ||
+          data.error ||
+          (failureCode
+            ? `PawaPay error: ${failureCode}`
+            : `PawaPay request failed with status ${response.status}`),
+      }
+    }
+
+    // ========================================================
+    // SUCCESSFUL REQUEST
+    // ========================================================
+
+    const status =
+      normalizeStatus(
+        data.status,
+      )
+
+    console.log(
+      "PawaPay deposit response",
+      {
+        status: response.status,
+        data,
+      },
+    )
+
+    return {
+      ok: true,
+
+      status,
+
+      providerRef:
+        data.depositId ||
+        input.reference,
+
+      amountUsd:
+        input.amountUsd,
+
+      amount,
+
+      currency:
+        currencyConfig.currency,
+
+      exchangeRate,
+
+      country,
+    }
+  } catch (error) {
+    console.error(
+      "PawaPay payment error:",
+      error,
+    )
+
+    return {
+      ok: false,
+      status: "failed",
+
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to process the PawaPay payment.",
+    }
+  }
 }
 
-// small indirection so the export name reads clearly above
-const initiatePayment_pawapay = initiatePawapay
+// ============================================================
+// CHECK PAWAPAY PAYMENT STATUS
+// ============================================================
 
 export async function checkPayment(
-  provider: PaymentProvider,
   reference: string,
 ): Promise<InitiateResult> {
-  if (!providerConfigured(provider)) {
-    // Simulated: resolve to success so demo enrollments unlock.
-    return { ok: true, status: "success", providerRef: `SIMULATED-${reference}` }
+  if (!pawapayConfigured()) {
+    return {
+      ok: false,
+      status: "failed",
+      error:
+        "PawaPay is not configured.",
+    }
   }
-  if (provider === "pawapay") return checkPawapay(reference)
-  // AvadaPay status check (best-effort, same adapter shape).
-  const res = await fetch(`${avadapayBase()}/status/${reference}`, {
-    headers: { Authorization: `Bearer ${process.env.AVADAPAY_API_KEY}` },
-  })
-  const data = (await res.json().catch(() => ({}))) as { status?: string }
-  const s = (data.status || "").toLowerCase()
-  const status = s === "success" || s === "completed" ? "success" : s === "failed" ? "failed" : "pending"
-  return { ok: true, status, providerRef: reference }
+
+  try {
+    const response =
+      await fetch(
+        `${pawapayBase()}/v2/deposits/${encodeURIComponent(
+          reference,
+        )}`,
+        {
+          method: "GET",
+
+          headers: {
+            Authorization:
+              `Bearer ${pawapayToken()}`,
+
+            Accept:
+              "application/json",
+          },
+
+          cache: "no-store",
+        },
+      )
+
+    const rawText =
+      await response.text()
+
+    let data: {
+      status?: string
+      depositId?: string
+      message?: string
+      error?: string
+
+      failureReason?: {
+        failureCode?: string
+        failureMessage?: string
+      }
+
+      data?: {
+        status?: string
+        depositId?: string
+      }
+    } = {}
+
+    try {
+      data =
+        rawText
+          ? JSON.parse(rawText)
+          : {}
+    } catch {
+      console.error(
+        "Invalid PawaPay status response:",
+        rawText,
+      )
+    }
+
+    if (!response.ok) {
+      console.error(
+        "PawaPay status error:",
+        response.status,
+        data,
+      )
+
+      return {
+        ok: false,
+        status: "failed",
+
+        error:
+          data.failureReason?.failureMessage ||
+          data.message ||
+          data.error ||
+          `Unable to check payment status (${response.status}).`,
+      }
+    }
+
+    const rawStatus =
+      data.status ||
+      data.data?.status
+
+    return {
+      ok: true,
+
+      status:
+        normalizeStatus(
+          rawStatus,
+        ),
+
+      providerRef:
+        data.depositId ||
+        data.data?.depositId ||
+        reference,
+    }
+  } catch (error) {
+    console.error(
+      "PawaPay status network error:",
+      error,
+    )
+
+    return {
+      ok: false,
+      status: "failed",
+
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to connect to PawaPay.",
+    }
+  }
 }
+

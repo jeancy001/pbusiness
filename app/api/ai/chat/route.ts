@@ -1,8 +1,10 @@
+
 import {
   streamText,
-  toTextStream,
   type ModelMessage,
 } from "ai"
+
+import { google } from "@ai-sdk/google"
 
 import {
   getAllFormations,
@@ -10,110 +12,171 @@ import {
 } from "@/lib/data/catalog"
 
 import {
-  AI_MODEL,
   ASSISTANT_SYSTEM,
   buildCatalogContext,
-  aiEnabled,
 } from "@/lib/ai/config"
 
 export const maxDuration = 30
+
+// ============================================================
+// GEMINI MODEL
+// ============================================================
+
+// Explicitly set the model to avoid old environment or
+// configuration values overriding it.
+const GEMINI_MODEL = "gemini-3.6-flash"
 
 type ChatMessage = {
   role: "user" | "assistant"
   content: string
 }
 
+type RequestBody = {
+  messages?: ChatMessage[]
+  locale?: "fr" | "en"
+}
+
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as {
-      messages?: ChatMessage[]
-      locale?: "fr" | "en"
-    }
+    const body = (await req.json()) as RequestBody
 
     const messages = Array.isArray(body.messages)
       ? body.messages
       : []
 
-    const locale = body.locale === "en" ? "en" : "fr"
+    const locale =
+      body.locale === "en" ? "en" : "fr"
 
-    // AI Gateway configuration check.
-    if (!aiEnabled()) {
-      const message =
-        locale === "fr"
-          ? "L'assistant IA Gemini sera actif une fois la clé AI_GATEWAY_API_KEY configurée. En attendant, parcourez nos formations et services."
-          : "The Gemini AI assistant will be active once AI_GATEWAY_API_KEY is configured. Meanwhile, browse our courses and services."
+    // ============================================================
+    // GEMINI API KEY CHECK
+    // ============================================================
 
-      return new Response(message, {
-        status: 200,
-        headers: {
-          "Content-Type": "text/plain; charset=utf-8",
-          "Cache-Control": "no-cache",
+    if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim()) {
+      return Response.json(
+        {
+          error: "GEMINI_API_KEY_MISSING",
+          message:
+            locale === "fr"
+              ? "L'assistant IA Gemini n'est pas encore configuré."
+              : "The Gemini AI assistant is not configured yet.",
         },
-      })
+        {
+          status: 503,
+        },
+      )
     }
 
-    // Load catalog data in parallel.
-    const [formations, services] = await Promise.all([
-      getAllFormations(),
-      Promise.resolve(getServices()),
-    ])
+    // ============================================================
+    // VALIDATE CONVERSATION
+    // ============================================================
 
-    const context = buildCatalogContext(
-      formations,
-      services,
-    )
+    const modelMessages: ModelMessage[] =
+      messages
+        .filter(
+          (message) =>
+            (message.role === "user" ||
+              message.role === "assistant") &&
+            typeof message.content === "string" &&
+            message.content.trim().length > 0,
+        )
+        .slice(-20)
+        .map((message) => ({
+          role: message.role,
+          content: message.content.trim(),
+        }))
 
-    // Only user and assistant messages are sent to the model.
-    // System instructions are provided separately through `system`.
-    const modelMessages: ModelMessage[] = messages
-      .filter(
-        (message) =>
-          (message.role === "user" ||
-            message.role === "assistant") &&
-          typeof message.content === "string" &&
-          message.content.trim().length > 0,
+    if (modelMessages.length === 0) {
+      return Response.json(
+        {
+          error: "EMPTY_MESSAGES",
+          message:
+            locale === "fr"
+              ? "Veuillez envoyer un message."
+              : "Please send a message.",
+        },
+        {
+          status: 400,
+        },
       )
-      .map((message) => ({
-        role: message.role,
-        content: message.content,
-      }))
+    }
+
+    // ============================================================
+    // LOAD CATALOG
+    // ============================================================
+
+    const [formations, services] =
+      await Promise.all([
+        getAllFormations(),
+        Promise.resolve(getServices()),
+      ])
+
+    const context =
+      buildCatalogContext(
+        formations,
+        services,
+      )
 
     const system = `${ASSISTANT_SYSTEM}
 
 ${context}`
 
+    // ============================================================
+    // GEMINI AI
+    // ============================================================
+
+    console.log(
+      "🤖 Using Gemini model:",
+      GEMINI_MODEL,
+    )
+
     const result = streamText({
-      model: AI_MODEL,
+      model: google(GEMINI_MODEL),
       system,
       messages: modelMessages,
+      temperature: 0.7,
+
+      onError({ error }) {
+        console.error(
+          "❌ Gemini streaming error:",
+          error,
+        )
+      },
     })
 
-    // ai@7: toTextStreamResponse() is deprecated.
-    return new Response(toTextStream(result), {
-      status: 200,
+    // ============================================================
+    // STREAM RESPONSE
+    // ============================================================
+
+    return result.toTextStreamResponse({
       headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
+        "Cache-Control":
+          "no-cache, no-transform",
+
+        "Connection":
+          "keep-alive",
+
+        "X-Accel-Buffering":
+          "no",
       },
     })
   } catch (error) {
-    console.error("AI chat error:", error)
+    console.error(
+      "❌ Gemini AI chat error:",
+      error,
+    )
 
-    return new Response(
-      JSON.stringify({
+    return Response.json(
+      {
         error: "AI_CHAT_ERROR",
         message:
           error instanceof Error
             ? error.message
             : "Unknown AI chat error",
-      }),
+      },
       {
         status: 500,
-        headers: {
-          "Content-Type": "application/json; charset=utf-8",
-        },
       },
     )
   }
 }
+
