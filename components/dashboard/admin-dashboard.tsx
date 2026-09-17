@@ -22,17 +22,41 @@ import {
   type PaymentStatus,
 } from "@/lib/mock-data"
 import type { AdminView } from "@/lib/data/dashboard"
-import { DashboardShell, StatCard, type NavItem } from "@/components/dashboard/dashboard-shell"
+import {
+  DashboardShell,
+  StatCard,
+  type NavItem,
+} from "@/components/dashboard/dashboard-shell"
 import { Badge } from "@/components/ui/badge"
 import { RevenueChart } from "./revenue-chart"
 import { AiManagement } from "./ai-management"
 
 const nav: NavItem[] = [
-  { href: "/dashboard/admin", labelKey: "dash.overview", icon: LayoutDashboard },
-  { href: "/dashboard/admin", labelKey: "admin.users", icon: Users },
-  { href: "/dashboard/admin", labelKey: "admin.manageFormations", icon: GraduationCap },
-  { href: "/dashboard/admin", labelKey: "admin.aiManagement", icon: Sparkles },
-  { href: "/dashboard/admin", labelKey: "admin.settings", icon: Settings },
+  {
+    href: "/dashboard/admin",
+    labelKey: "dash.overview",
+    icon: LayoutDashboard,
+  },
+  {
+    href: "/dashboard/admin",
+    labelKey: "admin.users",
+    icon: Users,
+  },
+  {
+    href: "/dashboard/admin",
+    labelKey: "admin.manageFormations",
+    icon: GraduationCap,
+  },
+  {
+    href: "/dashboard/admin",
+    labelKey: "admin.aiManagement",
+    icon: Sparkles,
+  },
+  {
+    href: "/dashboard/admin",
+    labelKey: "admin.settings",
+    icon: Settings,
+  },
 ]
 
 const statIcons: Record<string, LucideIcon> = {
@@ -42,27 +66,48 @@ const statIcons: Record<string, LucideIcon> = {
   subscriptions: Repeat,
 }
 
-type PaymentRow = { id: string; item: string; amount: number; method: string; status: PaymentStatus }
+type PaymentRow = {
+  id: string
+  item: string
+  amount: number
+  method: string
+  status: PaymentStatus
+}
 
-export function AdminDashboard({ data = null }: { data?: AdminView | null }) {
+export function AdminDashboard({
+  data = null,
+}: {
+  data?: AdminView | null
+}) {
   const { t, locale } = useI18n()
 
   const usd = (n: number) => `$${n.toLocaleString("en-US")}`
 
   // Use live DB data when available, otherwise fall back to bundled demo data.
-  const revenueValue = data ? usd(data.stats.revenue) : usd(adminStats.revenueUsd)
-  const salesValue = data ? data.stats.students.toLocaleString() : adminStats.sales.toLocaleString()
+  const revenueValue = data
+    ? usd(data.stats.revenue)
+    : usd(adminStats.revenueUsd)
+
+  const salesValue = data
+    ? data.stats.students.toLocaleString()
+    : adminStats.sales.toLocaleString()
+
   const enrollmentsValue = data
     ? data.stats.students.toLocaleString()
     : adminStats.enrollments.toLocaleString()
+
   const subsValue = data
     ? data.stats.projects.toLocaleString()
     : adminStats.activeSubscriptions.toLocaleString()
 
-  const revenueSeries = data && data.revenue.length ? data.revenue : revenueByMonth
+  const revenueSeries =
+    data && data.revenue.length ? data.revenue : revenueByMonth
+
   const popular = data
     ? data.popular
-    : [...mockFormations].sort((a, b) => b.studentsCount - a.studentsCount).slice(0, 5)
+    : [...mockFormations]
+        .sort((a, b) => b.studentsCount - a.studentsCount)
+        .slice(0, 5)
 
   const recentPayments: PaymentRow[] = data
     ? data.recentPayments.map((p) => ({
@@ -90,18 +135,21 @@ export function AdminDashboard({ data = null }: { data?: AdminView | null }) {
           change={data ? undefined : adminStats.revenueChange}
           icon={statIcons.revenue}
         />
+
         <StatCard
           label={t("admin.sales")}
           value={salesValue}
           change={data ? undefined : adminStats.salesChange}
           icon={statIcons.sales}
         />
+
         <StatCard
           label={t("admin.enrollments")}
           value={enrollmentsValue}
           change={data ? undefined : adminStats.enrollmentsChange}
           icon={statIcons.enrollments}
         />
+
         <StatCard
           label={t("admin.subscriptions")}
           value={subsValue}
@@ -112,31 +160,81 @@ export function AdminDashboard({ data = null }: { data?: AdminView | null }) {
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Revenue chart */}
-        <div className="rounded-2xl border border-border bg-card p-5 lg:col-span-2">
-          <h2 className="mb-4 font-heading text-base font-semibold">{t("admin.revenueChart")}</h2>
+        <div
+          className="
+            rounded-2xl border border-border bg-card p-5
+            transition-all duration-200
+            hover:border-[#064E3B]/20 hover:shadow-md
+            dark:hover:border-emerald-800/60
+          "
+        >
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-heading text-base font-semibold">
+              {t("admin.revenueChart")}
+            </h2>
+
+            <div className="size-2 rounded-full bg-[#064E3B] dark:bg-emerald-500" />
+          </div>
+
           <RevenueChart data={revenueSeries} />
         </div>
 
         {/* Popular formations */}
-        <div className="rounded-2xl border border-border bg-card p-5">
+        <div
+          className="
+            rounded-2xl border border-border bg-card p-5
+            transition-all duration-200
+            hover:border-[#064E3B]/20 hover:shadow-md
+            dark:hover:border-emerald-800/60
+          "
+        >
           <h2 className="mb-4 font-heading text-base font-semibold">
             {t("admin.popularFormations")}
           </h2>
+
           <div className="flex flex-col gap-3">
             {popular.map((f, i) => (
-              <div key={f.id} className="flex items-center gap-3">
-                <span className="font-heading text-sm font-semibold text-muted-foreground">
+              <div
+                key={f.id}
+                className="
+                  group flex items-center gap-3 rounded-lg p-2
+                  transition-colors duration-150
+                  hover:bg-[#064E3B]/5
+                  dark:hover:bg-emerald-950/40
+                "
+              >
+                <span
+                  className="
+                    flex size-7 shrink-0 items-center justify-center rounded-full
+                    bg-[#064E3B]/10
+                    font-heading text-sm font-semibold text-[#064E3B]
+                    dark:bg-emerald-950/60 dark:text-emerald-400
+                  "
+                >
                   {i + 1}
                 </span>
+
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-foreground">
+                  <p
+                    className="
+                      truncate text-sm font-medium text-foreground
+                      transition-colors
+                      group-hover:text-[#064E3B]
+                      dark:group-hover:text-emerald-400
+                    "
+                  >
                     {localize(f.title, locale)}
                   </p>
+
                   <p className="text-xs text-muted-foreground">
-                    {f.studentsCount.toLocaleString()} {t("admin.studentsLabel")}
+                    {f.studentsCount.toLocaleString()}{" "}
+                    {t("admin.studentsLabel")}
                   </p>
                 </div>
-                <span className="text-sm font-semibold text-primary">${f.priceUsd}</span>
+
+                <span className="text-sm font-semibold text-[#064E3B] dark:text-emerald-400">
+                  ${f.priceUsd}
+                </span>
               </div>
             ))}
           </div>
@@ -150,30 +248,85 @@ export function AdminDashboard({ data = null }: { data?: AdminView | null }) {
 
       {/* Recent payments */}
       <section className="mt-6">
-        <h2 className="mb-4 font-heading text-base font-semibold">{t("admin.recentPayments")}</h2>
-        <div className="overflow-hidden rounded-2xl border border-border bg-card">
+        <div className="mb-4 flex items-center gap-3">
+          <h2 className="font-heading text-base font-semibold">
+            {t("admin.recentPayments")}
+          </h2>
+
+          <div className="h-px flex-1 bg-[#064E3B]/10 dark:bg-emerald-900/40" />
+        </div>
+
+        <div
+          className="
+            overflow-hidden rounded-2xl border border-border bg-card
+            transition-all duration-200
+            hover:border-[#064E3B]/20
+            dark:hover:border-emerald-800/60
+          "
+        >
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-border bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <thead
+                className="
+                  border-b border-[#064E3B]/10
+                  bg-[#064E3B]/[0.03]
+                  text-left text-xs uppercase tracking-wide
+                  text-muted-foreground
+                  dark:border-emerald-900/40
+                  dark:bg-emerald-950/20
+                "
+              >
                 <tr>
-                  <th className="px-5 py-3 font-medium">{t("admin.colId")}</th>
-                  <th className="px-5 py-3 font-medium">{t("admin.colItem")}</th>
-                  <th className="px-5 py-3 font-medium">{t("admin.colAmount")}</th>
+                  <th className="px-5 py-3 font-medium">
+                    {t("admin.colId")}
+                  </th>
+
+                  <th className="px-5 py-3 font-medium">
+                    {t("admin.colItem")}
+                  </th>
+
+                  <th className="px-5 py-3 font-medium">
+                    {t("admin.colAmount")}
+                  </th>
+
                   <th className="hidden px-5 py-3 font-medium sm:table-cell">
                     {t("admin.colMethod")}
                   </th>
-                  <th className="px-5 py-3 font-medium">{t("admin.colStatus")}</th>
+
+                  <th className="px-5 py-3 font-medium">
+                    {t("admin.colStatus")}
+                  </th>
                 </tr>
               </thead>
+
               <tbody>
                 {recentPayments.map((p) => (
-                  <tr key={p.id} className="border-b border-border/60 last:border-0">
-                    <td className="px-5 py-3 font-mono text-xs text-muted-foreground">{p.id}</td>
-                    <td className="px-5 py-3 font-medium text-foreground">{p.item}</td>
-                    <td className="px-5 py-3 text-foreground">${p.amount}</td>
+                  <tr
+                    key={p.id}
+                    className="
+                      border-b border-border/60
+                      transition-colors duration-150
+                      hover:bg-[#064E3B]/[0.025]
+                      last:border-0
+                      dark:hover:bg-emerald-950/20
+                    "
+                  >
+                    <td className="px-5 py-3 font-mono text-xs text-muted-foreground">
+                      {p.id}
+                    </td>
+
+                    <td className="px-5 py-3 font-medium text-foreground">
+                      {p.item}
+                    </td>
+
+                    <td className="px-5 py-3 font-semibold text-[#064E3B] dark:text-emerald-400">
+                      ${p.amount}
+                    </td>
+
                     <td className="hidden px-5 py-3 text-muted-foreground sm:table-cell">
                       {p.method}
                     </td>
+
                     <td className="px-5 py-3">
                       <Badge
                         variant={
@@ -184,7 +337,10 @@ export function AdminDashboard({ data = null }: { data?: AdminView | null }) {
                               : "destructive"
                         }
                       >
-                        {localize(paymentStatusLabels[p.status], locale)}
+                        {localize(
+                          paymentStatusLabels[p.status],
+                          locale,
+                        )}
                       </Badge>
                     </td>
                   </tr>

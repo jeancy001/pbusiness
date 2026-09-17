@@ -1,6 +1,13 @@
 "use client"
 
-import { GraduationCap, Award, Code2, ShieldCheck, Sparkles, Headset } from "lucide-react"
+import {
+  GraduationCap,
+  Award,
+  Code2,
+  ShieldCheck,
+  Sparkles,
+  Headset,
+} from "lucide-react"
 import { useI18n } from "@/lib/i18n/context"
 
 const features = [
@@ -21,16 +28,57 @@ export function Features() {
         <h2 className="text-balance font-heading text-3xl font-bold tracking-tight md:text-4xl">
           {t("section.why.title")}
         </h2>
-        <p className="mt-3 text-pretty text-muted-foreground">{t("section.why.subtitle")}</p>
+
+        <div className="mx-auto mt-3 h-1 w-16 rounded-full bg-[#064E3B] dark:bg-emerald-500" />
+
+        <p className="mt-3 text-pretty text-muted-foreground">
+          {t("section.why.subtitle")}
+        </p>
       </div>
+
       <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {features.map((f) => (
-          <div key={f.title} className="group rounded-2xl border border-border bg-card p-6 transition-colors hover:border-primary/40">
-            <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+          <div
+            key={f.title}
+            className="
+              group rounded-2xl border border-border bg-card p-6
+              transition-all duration-200
+              hover:-translate-y-0.5
+              hover:border-[#064E3B]/30
+              hover:shadow-md
+              dark:hover:border-emerald-800
+            "
+          >
+            <div
+              className="
+                flex size-11 items-center justify-center rounded-xl
+                bg-[#064E3B]/10 text-[#064E3B]
+                transition-all duration-200
+                group-hover:bg-[#064E3B]
+                group-hover:text-white
+                dark:bg-emerald-950/50
+                dark:text-emerald-400
+                dark:group-hover:bg-emerald-800
+                dark:group-hover:text-white
+              "
+            >
               <f.icon className="size-5" />
             </div>
-            <h3 className="mt-4 font-heading text-lg font-semibold">{t(f.title)}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{t(f.desc)}</p>
+
+            <h3
+              className="
+                mt-4 font-heading text-lg font-semibold
+                transition-colors duration-200
+                group-hover:text-[#064E3B]
+                dark:group-hover:text-emerald-400
+              "
+            >
+              {t(f.title)}
+            </h3>
+
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              {t(f.desc)}
+            </p>
           </div>
         ))}
       </div>

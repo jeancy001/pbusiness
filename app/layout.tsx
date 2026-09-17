@@ -1,27 +1,38 @@
-import { Analytics } from '@vercel/analytics/next'
-import type { Metadata, Viewport } from 'next'
-import { Inter, Space_Grotesk } from 'next/font/google'
-import type React from 'react'
+import { Analytics } from "@vercel/analytics/next"
 
-import { Providers } from '@/components/providers'
-import { getSession } from '@/lib/auth/session'
+import type { Metadata, Viewport } from "next"
 
-import './globals.css'
+import { Inter, Space_Grotesk } from "next/font/google"
+
+import type React from "react"
+
+import { Providers } from "@/components/providers"
+import { PBPayLogo } from "@/components/ui/pb-pay-logo"
+import { getSession } from "@/lib/auth/session"
+
+import "./globals.css"
+
+// ============================================================
+// PB-PAY BRAND
+// ============================================================
+
+const PB_PAY_GREEN = "#064E3B"
+const PB_PAY_GREEN_DARK = "#053D2E"
 
 // ============================================================
 // FONTS
 // ============================================================
 
 const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-  display: 'swap',
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
 })
 
 const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
-  variable: '--font-space-grotesk',
-  display: 'swap',
+  subsets: ["latin"],
+  variable: "--font-space-grotesk",
+  display: "swap",
 })
 
 // ============================================================
@@ -29,13 +40,13 @@ const spaceGrotesk = Space_Grotesk({
 // ============================================================
 
 const siteUrl =
-  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ||
-  'https://www.p-bonline.dev'
+  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
+  "https://www.p-bonline.dev"
 
-const siteName = 'P Business Online'
+const siteName = "P Business Online"
 
 const siteDescription =
-  'Plateforme professionnelle de formations en ligne, certificats numériques, codes sources et solutions de développement web, mobile, desktop, SaaS et API.'
+  "Plateforme professionnelle de formations en ligne, certificats numériques, codes sources et solutions de développement web, mobile, desktop, SaaS et API."
 
 // ============================================================
 // METADATA
@@ -48,36 +59,36 @@ export const metadata: Metadata = {
 
   title: {
     default:
-      'P Business Online — Formations, certificats & solutions numériques',
-    template: '%s | P Business Online',
+      "P Business Online — Formations, certificats & solutions numériques",
+    template: "%s | P Business Online",
   },
 
   description: siteDescription,
 
   keywords: [
-    'P Business Online',
-    'PB Online',
-    'formations en ligne',
-    'formation professionnelle',
-    'certificats numériques',
-    'certification en ligne',
-    'cours en ligne',
-    'codes sources',
-    'développement web',
-    'développement mobile',
-    'développement desktop',
-    'création de site web',
-    'application mobile',
-    'SaaS',
-    'API',
-    'solutions numériques',
-    'intelligence artificielle',
-    'technologie',
+    "P Business Online",
+    "PB Online",
+    "PB-pay",
+    "formations en ligne",
+    "formation professionnelle",
+    "certificats numériques",
+    "certification en ligne",
+    "cours en ligne",
+    "codes sources",
+    "développement web",
+    "développement mobile",
+    "développement desktop",
+    "création de site web",
+    "application mobile",
+    "SaaS",
+    "API",
+    "solutions numériques",
+    "intelligence artificielle",
+    "technologie",
   ],
 
   generator: siteName,
-
-  category: 'Technology',
+  category: "Technology",
 
   authors: [
     {
@@ -96,31 +107,30 @@ export const metadata: Metadata = {
   },
 
   alternates: {
-    canonical: '/',
+    canonical: "/",
   },
 
   // ============================================================
   // OPEN GRAPH
-  // Facebook, LinkedIn, WhatsApp, Telegram, Discord, etc.
   // ============================================================
 
   openGraph: {
-    type: 'website',
-    locale: 'fr_FR',
+    type: "website",
+    locale: "fr_FR",
     url: siteUrl,
     siteName,
 
     title:
-      'P Business Online — Formations, certificats & solutions numériques',
+      "P Business Online — Formations, certificats & solutions numériques",
 
     description: siteDescription,
 
     images: [
       {
-        url: '/web-logo.png',
+        url: "/web-logo.png",
         width: 1200,
         height: 630,
-        alt: 'P Business Online — Formations et solutions numériques',
+        alt: "PB-pay — P Business Online",
       },
     ],
   },
@@ -130,22 +140,22 @@ export const metadata: Metadata = {
   // ============================================================
 
   twitter: {
-    card: 'summary_large_image',
+    card: "summary_large_image",
 
     title:
-      'P Business Online — Formations, certificats & solutions numériques',
+      "P Business Online — Formations, certificats & solutions numériques",
 
     description: siteDescription,
 
     images: [
       {
-        url: '/web-logo.png',
-        alt: 'P Business Online — Formations et solutions numériques',
+        url: "/web-logo.png",
+        alt: "PB-pay — P Business Online",
       },
     ],
 
-    creator: '@YOUR_TWITTER_USERNAME',
-    site: '@YOUR_TWITTER_USERNAME',
+    creator: "@YOUR_TWITTER_USERNAME",
+    site: "@YOUR_TWITTER_USERNAME",
   },
 
   // ============================================================
@@ -159,10 +169,9 @@ export const metadata: Metadata = {
     googleBot: {
       index: true,
       follow: true,
-
-      'max-video-preview': -1,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
     },
   },
 
@@ -173,31 +182,31 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: '/web-logo.png',
-        sizes: 'any',
+        url: "/web-logo.png",
+        sizes: "any",
       },
       {
-        url: '/web-logo.png',
-        type: 'image/png',
-        sizes: '512x512',
+        url: "/web-logo.png",
+        type: "image/png",
+        sizes: "512x512",
       },
     ],
 
     apple: [
       {
-        url: '/web-logo.png',
-        sizes: '180x180',
+        url: "/web-logo.png",
+        sizes: "180x180",
       },
     ],
 
-    shortcut: ['/web-logo.png'],
+    shortcut: ["/web-logo.png"],
   },
 
   // ============================================================
   // PWA
   // ============================================================
 
-  manifest: '/manifest.webmanifest',
+  manifest: "/manifest.webmanifest",
 }
 
 // ============================================================
@@ -205,20 +214,20 @@ export const metadata: Metadata = {
 // ============================================================
 
 export const viewport: Viewport = {
-  width: 'device-width',
+  width: "device-width",
   initialScale: 1,
   maximumScale: 5,
 
-  colorScheme: 'light dark',
+  colorScheme: "light dark",
 
   themeColor: [
     {
-      media: '(prefers-color-scheme: light)',
-      color: '#fafaff',
+      media: "(prefers-color-scheme: light)",
+      color: PB_PAY_GREEN,
     },
     {
-      media: '(prefers-color-scheme: dark)',
-      color: '#0e1220',
+      media: "(prefers-color-scheme: dark)",
+      color: PB_PAY_GREEN_DARK,
     },
   ],
 }
@@ -251,10 +260,15 @@ export default async function RootLayout({
     >
       <body className="font-sans antialiased">
         <Providers initialUser={initialUser}>
+          {/* PB-pay global brand mark */}
+          <div className="sr-only" aria-label="PB-pay">
+            <PBPayLogo className="size-7" />
+          </div>
+
           {children}
         </Providers>
 
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        {process.env.NODE_ENV === "production" && <Analytics />}
       </body>
     </html>
   )

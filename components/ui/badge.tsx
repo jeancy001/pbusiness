@@ -7,16 +7,31 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        default: 'border-transparent bg-primary/10 text-primary',
-        brand: 'border-transparent bg-brand/15 text-brand-foreground dark:text-brand',
-        secondary: 'border-transparent bg-secondary text-secondary-foreground',
-        outline: 'border-border text-foreground',
-        success: 'border-transparent bg-success/15 text-success',
-        warning: 'border-transparent bg-warning/20 text-warning-foreground dark:text-warning',
-        destructive: 'border-transparent bg-destructive/10 text-destructive',
+        default:
+          'border-transparent bg-[#064E3B]/10 text-[#064E3B] dark:bg-emerald-950/50 dark:text-emerald-400',
+
+        brand:
+          'border-transparent bg-[#064E3B]/15 text-[#064E3B] dark:bg-emerald-950/50 dark:text-emerald-400',
+
+        secondary:
+          'border-transparent bg-secondary text-secondary-foreground dark:bg-emerald-950/30 dark:text-emerald-300',
+
+        outline:
+          'border-[#064E3B]/25 text-[#064E3B] hover:bg-[#064E3B]/5 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950/40',
+
+        success:
+          'border-transparent bg-success/15 text-success',
+
+        warning:
+          'border-transparent bg-warning/20 text-warning-foreground dark:text-warning',
+
+        destructive:
+          'border-transparent bg-destructive/10 text-destructive',
       },
     },
-    defaultVariants: { variant: 'default' },
+    defaultVariants: {
+      variant: 'default',
+    },
   },
 )
 
@@ -25,7 +40,13 @@ function Badge({
   variant,
   ...props
 }: React.ComponentProps<'span'> & VariantProps<typeof badgeVariants>) {
-  return <span data-slot="badge" className={cn(badgeVariants({ variant }), className)} {...props} />
+  return (
+    <span
+      data-slot="badge"
+      className={cn(badgeVariants({ variant }), className)}
+      {...props}
+    />
+  )
 }
 
 export { Badge, badgeVariants }

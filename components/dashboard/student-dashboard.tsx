@@ -2,84 +2,241 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { Award, BookOpen, Code2, Download, GraduationCap, PlayCircle, Trophy } from "lucide-react"
+import {
+  Award,
+  BookOpen,
+  Code2,
+  Download,
+  GraduationCap,
+  PlayCircle,
+  Trophy,
+} from "lucide-react"
 import { useI18n } from "@/lib/i18n/context"
-import { DashboardShell, StatCard, type NavItem } from "@/components/dashboard/dashboard-shell"
+import {
+  DashboardShell,
+  StatCard,
+  type NavItem,
+} from "@/components/dashboard/dashboard-shell"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { localize } from "@/lib/mock-data"
 import type { EnrolledView } from "@/lib/data/dashboard"
 
 const nav: NavItem[] = [
-  { href: "/dashboard/student", labelKey: "dash.overview", icon: GraduationCap },
-  { href: "/dashboard/student", labelKey: "student.myFormations", icon: BookOpen },
-  { href: "/dashboard/student", labelKey: "student.certificates", icon: Award },
-  { href: "/dashboard/student", labelKey: "student.sourceCode", icon: Code2 },
-  { href: "/dashboard/student", labelKey: "student.evaluations", icon: Trophy },
+  {
+    href: "/dashboard/student",
+    labelKey: "dash.overview",
+    icon: GraduationCap,
+  },
+  {
+    href: "/dashboard/student",
+    labelKey: "student.myFormations",
+    icon: BookOpen,
+  },
+  {
+    href: "/dashboard/student",
+    labelKey: "student.certificates",
+    icon: Award,
+  },
+  {
+    href: "/dashboard/student",
+    labelKey: "student.sourceCode",
+    icon: Code2,
+  },
+  {
+    href: "/dashboard/student",
+    labelKey: "student.evaluations",
+    icon: Trophy,
+  },
 ]
 
-export function StudentDashboard({ enrolled }: { enrolled: EnrolledView[] }) {
+export function StudentDashboard({
+  enrolled,
+}: {
+  enrolled: EnrolledView[]
+}) {
   const { t, locale } = useI18n()
 
-  const completed = enrolled.filter((e) => e.status === "completed").length
-  const certificates = enrolled.filter((e) => e.certificateAvailable).length
+  const completed = enrolled.filter(
+    (e) => e.status === "completed",
+  ).length
+
+  const certificates = enrolled.filter(
+    (e) => e.certificateAvailable,
+  ).length
+
   const avgProgress = enrolled.length
-    ? Math.round(enrolled.reduce((sum, e) => sum + e.progress, 0) / enrolled.length)
+    ? Math.round(
+        enrolled.reduce((sum, e) => sum + e.progress, 0) /
+          enrolled.length,
+      )
     : 0
 
   return (
     <DashboardShell nav={nav} titleKey="student.title">
+      {/* KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label={t("student.myFormations")} value={String(enrolled.length)} icon={BookOpen} />
-        <StatCard label={t("student.progress")} value={`${avgProgress}%`} icon={GraduationCap} />
-        <StatCard label={t("student.completed")} value={String(completed)} icon={Trophy} />
-        <StatCard label={t("student.certificates")} value={String(certificates)} icon={Award} />
+        <StatCard
+          label={t("student.myFormations")}
+          value={String(enrolled.length)}
+          icon={BookOpen}
+        />
+
+        <StatCard
+          label={t("student.progress")}
+          value={`${avgProgress}%`}
+          icon={GraduationCap}
+        />
+
+        <StatCard
+          label={t("student.completed")}
+          value={String(completed)}
+          icon={Trophy}
+        />
+
+        <StatCard
+          label={t("student.certificates")}
+          value={String(certificates)}
+          icon={Award}
+        />
       </div>
 
+      {/* My Formations */}
       <section className="mt-8">
-        <h2 className="mb-4 font-heading text-lg font-semibold">{t("student.myFormations")}</h2>
+        <div className="mb-4 flex items-center gap-3">
+          <h2 className="font-heading text-lg font-semibold">
+            {t("student.myFormations")}
+          </h2>
+
+          <div className="h-1 w-10 rounded-full bg-[#064E3B] dark:bg-emerald-500" />
+        </div>
+
         <div className="space-y-4">
           {enrolled.map((e) => {
             const f = e.formation
+
             return (
               <div
                 key={e.formationId}
-                className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 sm:flex-row sm:items-center"
+                className="
+                  group flex flex-col gap-4
+                  rounded-2xl border border-border
+                  bg-card p-4
+                  transition-all duration-200
+                  hover:border-[#064E3B]/25
+                  hover:shadow-md
+                  sm:flex-row sm:items-center
+                  dark:hover:border-emerald-800/60
+                "
               >
-                <div className="relative h-20 w-full shrink-0 overflow-hidden rounded-xl sm:w-32">
+                {/* Formation image */}
+                <div
+                  className="
+                    relative h-20 w-full shrink-0
+                    overflow-hidden rounded-xl
+                    ring-1 ring-transparent
+                    transition-all duration-200
+                    group-hover:ring-[#064E3B]/20
+                    sm:w-32
+                    dark:group-hover:ring-emerald-800/60
+                  "
+                >
                   <Image
                     src={f.image || "/placeholder.svg"}
                     alt={localize(f.title, locale)}
                     fill
-                    className="object-cover"
+                    className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                     sizes="128px"
                   />
                 </div>
+
+                {/* Formation details */}
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="truncate font-medium">{localize(f.title, locale)}</h3>
-                    <Badge variant={e.status === "completed" ? "success" : "secondary"}>
-                      {e.status === "completed" ? t("student.completed") : t("student.inProgress")}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3
+                      className="
+                        truncate font-medium
+                        transition-colors
+                        group-hover:text-[#064E3B]
+                        dark:group-hover:text-emerald-400
+                      "
+                    >
+                      {localize(f.title, locale)}
+                    </h3>
+
+                    <Badge
+                      variant={
+                        e.status === "completed"
+                          ? "success"
+                          : "secondary"
+                      }
+                    >
+                      {e.status === "completed"
+                        ? t("student.completed")
+                        : t("student.inProgress")}
                     </Badge>
                   </div>
+
                   <p className="mt-1 truncate text-sm text-muted-foreground">
-                    {t("student.nextLessons")}: {localize(e.nextLesson, locale)}
+                    {t("student.nextLessons")}:{" "}
+                    {localize(e.nextLesson, locale)}
                   </p>
+
+                  {/* Progress */}
                   <div className="mt-3 flex items-center gap-3">
                     <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-                      <div className="h-full rounded-full bg-primary" style={{ width: `${e.progress}%` }} />
+                      <div
+                        className="
+                          h-full rounded-full
+                          bg-[#064E3B]
+                          transition-all duration-500
+                          dark:bg-emerald-600
+                        "
+                        style={{ width: `${e.progress}%` }}
+                      />
                     </div>
-                    <span className="text-xs font-medium text-muted-foreground">{e.progress}%</span>
+
+                    <span className="text-xs font-medium text-muted-foreground">
+                      {e.progress}%
+                    </span>
                   </div>
                 </div>
+
+                {/* Actions */}
                 <div className="flex shrink-0 gap-2">
                   {e.certificateAvailable ? (
-                    <Button variant="outline" size="sm">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="
+                        border-[#064E3B]/30
+                        text-[#064E3B]
+                        hover:bg-[#064E3B]
+                        hover:text-white
+                        dark:border-emerald-700
+                        dark:text-emerald-400
+                        dark:hover:bg-emerald-800
+                        dark:hover:text-white
+                      "
+                    >
                       <Download className="size-4" />
                       {t("student.downloadCertificate")}
                     </Button>
                   ) : (
-                    <Button size="sm" render={<Link href={`/formations/${f.slug}`} />}>
+                    <Button
+                      size="sm"
+                      render={
+                        <Link href={`/formations/${f.slug}`} />
+                      }
+                      className="
+                        bg-[#064E3B]
+                        text-white
+                        shadow-sm
+                        hover:bg-[#053D2E]
+                        dark:bg-emerald-700
+                        dark:hover:bg-emerald-800
+                      "
+                    >
                       <PlayCircle className="size-4" />
                       {t("student.continueFormation")}
                     </Button>

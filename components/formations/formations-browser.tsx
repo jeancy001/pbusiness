@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useMemo, useState } from "react"
@@ -44,12 +43,6 @@ const levels: Level[] = [
 
 // ============================================================
 // UPCOMING UNIKIN EVENT
-//
-// IMPORTANT:
-// The event price used for payments must always be calculated
-// by the server.
-//
-// Do not send or trust a payment amount from this component.
 // ============================================================
 
 const UNIKIN_PROGRAMMING_EVENT = {
@@ -66,9 +59,6 @@ const UNIKIN_PROGRAMMING_EVENT = {
     en: "A special event dedicated to University of Kinshasa students passionate about programming, artificial intelligence, web development, and new technologies.",
   },
 
-  /**
-   * Update when officially confirmed.
-   */
   date: null as string | null,
 
   location: {
@@ -117,25 +107,15 @@ export function FormationsBrowser({
 }: {
   formations?: Formation[]
 }) {
-  const {
-    t,
-    locale,
-  } = useI18n()
+  const { t, locale } = useI18n()
 
-  const [query, setQuery] =
-    useState("")
+  const [query, setQuery] = useState("")
 
-  const [
-    category,
-    setCategory,
-  ] = useState<
-    FormationCategory | "all"
-  >("all")
+  const [category, setCategory] =
+    useState<FormationCategory | "all">("all")
 
   const [level, setLevel] =
-    useState<
-      Level | "all"
-    >("all")
+    useState<Level | "all">("all")
 
   // ==========================================================
   // USED CATEGORIES
@@ -146,8 +126,7 @@ export function FormationsBrowser({
       Array.from(
         new Set(
           formations.map(
-            (formation) =>
-              formation.category,
+            (formation) => formation.category,
           ),
         ),
       ),
@@ -159,51 +138,40 @@ export function FormationsBrowser({
   // ==========================================================
 
   const filtered = useMemo(() => {
-    const normalizedQuery =
-      query
+    const normalizedQuery = query
+      .toLowerCase()
+      .trim()
+
+    return formations.filter((formation) => {
+      if (
+        category !== "all" &&
+        formation.category !== category
+      ) {
+        return false
+      }
+
+      if (
+        level !== "all" &&
+        formation.level !== level
+      ) {
+        return false
+      }
+
+      if (!normalizedQuery) {
+        return true
+      }
+
+      const searchableContent = [
+        localize(formation.title, locale),
+        localize(formation.summary, locale),
+      ]
+        .join(" ")
         .toLowerCase()
-        .trim()
 
-    return formations.filter(
-      (formation) => {
-        if (
-          category !== "all" &&
-          formation.category !== category
-        ) {
-          return false
-        }
-
-        if (
-          level !== "all" &&
-          formation.level !== level
-        ) {
-          return false
-        }
-
-        if (!normalizedQuery) {
-          return true
-        }
-
-        const searchableContent =
-          [
-            localize(
-              formation.title,
-              locale,
-            ),
-
-            localize(
-              formation.summary,
-              locale,
-            ),
-          ]
-            .join(" ")
-            .toLowerCase()
-
-        return searchableContent.includes(
-          normalizedQuery,
-        )
-      },
-    )
+      return searchableContent.includes(
+        normalizedQuery,
+      )
+    })
   }, [
     query,
     category,
@@ -216,40 +184,30 @@ export function FormationsBrowser({
   // EVENT LOCALIZATION
   // ==========================================================
 
-  const eventTitle =
-    localize(
-      UNIKIN_PROGRAMMING_EVENT.title,
-      locale,
-    )
+  const eventTitle = localize(
+    UNIKIN_PROGRAMMING_EVENT.title,
+    locale,
+  )
 
-  const eventDescription =
-    localize(
-      UNIKIN_PROGRAMMING_EVENT.description,
-      locale,
-    )
+  const eventDescription = localize(
+    UNIKIN_PROGRAMMING_EVENT.description,
+    locale,
+  )
 
-  const eventLocation =
-    localize(
-      UNIKIN_PROGRAMMING_EVENT.location,
-      locale,
-    )
+  const eventLocation = localize(
+    UNIKIN_PROGRAMMING_EVENT.location,
+    locale,
+  )
 
-  const eventDuration =
-    localize(
-      UNIKIN_PROGRAMMING_EVENT
-        .ticket
-        .duration,
-      locale,
-    )
+  const eventDuration = localize(
+    UNIKIN_PROGRAMMING_EVENT.ticket.duration,
+    locale,
+  )
 
   const eventFeatures =
     locale === "fr"
-      ? UNIKIN_PROGRAMMING_EVENT
-          .features
-          .fr
-      : UNIKIN_PROGRAMMING_EVENT
-          .features
-          .en
+      ? UNIKIN_PROGRAMMING_EVENT.features.fr
+      : UNIKIN_PROGRAMMING_EVENT.features.en
 
   // ==========================================================
   // DATE DISPLAY
@@ -257,11 +215,9 @@ export function FormationsBrowser({
 
   const eventDateLabel =
     UNIKIN_PROGRAMMING_EVENT.date ??
-    (
-      locale === "fr"
-        ? "Date bientôt annoncée"
-        : "Date coming soon"
-    )
+    (locale === "fr"
+      ? "Date bientôt annoncée"
+      : "Date coming soon")
 
   // ==========================================================
   // RENDER
@@ -269,21 +225,29 @@ export function FormationsBrowser({
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
+
       {/* =====================================================
           HEADER
       ====================================================== */}
 
       <header className="mb-10 max-w-2xl">
-        <h1 className="text-balance font-heading text-3xl font-bold tracking-tight md:text-4xl">
-          {t(
-            "section.formations.title",
-          )}
+        <h1
+          className="
+            text-balance
+            font-heading
+            text-3xl
+            font-bold
+            tracking-tight
+            md:text-4xl
+          "
+        >
+          {t("section.formations.title")}
         </h1>
 
-        <p className="mt-3 text-pretty text-muted-foreground">
-          {t(
-            "section.formations.subtitle",
-          )}
+        <div className="mt-3 h-1 w-14 rounded-full bg-[#064E3B]" />
+
+        <p className="mt-4 text-pretty text-muted-foreground">
+          {t("section.formations.subtitle")}
         </p>
       </header>
 
@@ -291,16 +255,47 @@ export function FormationsBrowser({
           UPCOMING UNIKIN EVENT
       ====================================================== */}
 
-      <section className="relative mb-12 overflow-hidden rounded-3xl border border-primary/20 bg-card shadow-sm">
-        <div className="pointer-events-none absolute right-0 top-0 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
+      <section
+        className="
+          relative
+          mb-12
+          overflow-hidden
+          rounded-3xl
+          border
+          border-[#064E3B]/20
+          bg-[#064E3B]
+          text-white
+          shadow-xl
+        "
+      >
+        {/* PB-pay green glow */}
+        <div className="pointer-events-none absolute right-0 top-0 h-64 w-64 rounded-full bg-emerald-300/20 blur-3xl" />
 
         <div className="relative grid gap-8 p-6 md:grid-cols-[1.3fr_0.7fr] md:p-10">
+
           {/* =================================================
               EVENT INFORMATION
           ================================================== */}
 
           <div>
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary">
+
+            <div
+              className="
+                mb-5
+                inline-flex
+                items-center
+                gap-2
+                rounded-full
+                bg-white/10
+                px-3
+                py-1.5
+                text-sm
+                font-medium
+                text-emerald-50
+                ring-1
+                ring-white/20
+              "
+            >
               <CalendarDays className="size-4" />
 
               {locale === "fr"
@@ -308,61 +303,73 @@ export function FormationsBrowser({
                 : "Upcoming event"}
             </div>
 
-            <h2 className="max-w-2xl font-heading text-3xl font-bold tracking-tight md:text-4xl">
+            <h2
+              className="
+                max-w-2xl
+                font-heading
+                text-3xl
+                font-bold
+                tracking-tight
+                md:text-4xl
+              "
+            >
               {eventTitle}
             </h2>
 
-            <p className="mt-4 max-w-2xl text-pretty leading-relaxed text-muted-foreground">
+            <p className="mt-4 max-w-2xl text-pretty leading-relaxed text-emerald-50/80">
               {eventDescription}
             </p>
 
+            {/* Event metadata */}
             <div className="mt-6 flex flex-col gap-3 text-sm sm:flex-row sm:flex-wrap">
-              <div className="flex items-center gap-2">
-                <CalendarDays className="size-4 text-primary" />
 
-                <span>
-                  {eventDateLabel}
-                </span>
+              <div className="flex items-center gap-2">
+                <CalendarDays className="size-4 text-emerald-300" />
+                <span>{eventDateLabel}</span>
               </div>
 
               <div className="flex items-center gap-2">
-                <MapPin className="size-4 text-primary" />
-
-                <span>
-                  {eventLocation}
-                </span>
+                <MapPin className="size-4 text-emerald-300" />
+                <span>{eventLocation}</span>
               </div>
 
               <div className="flex items-center gap-2">
-                <Users className="size-4 text-primary" />
-
+                <Users className="size-4 text-emerald-300" />
                 <span>
                   {locale === "fr"
                     ? "Étudiants UNIKIN"
                     : "UNIKIN Students"}
                 </span>
               </div>
+
             </div>
 
-            {/* FEATURES */}
-
+            {/* Features */}
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
-              {eventFeatures.map(
-                (feature) => (
+              {eventFeatures.map((feature) => (
+                <div
+                  key={feature}
+                  className="flex items-center gap-3 text-sm text-emerald-50/90"
+                >
                   <div
-                    key={feature}
-                    className="flex items-center gap-3 text-sm"
+                    className="
+                      flex
+                      size-7
+                      shrink-0
+                      items-center
+                      justify-center
+                      rounded-full
+                      bg-white/10
+                      ring-1
+                      ring-white/10
+                    "
                   >
-                    <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                      <Code2 className="size-3.5 text-primary" />
-                    </div>
-
-                    <span>
-                      {feature}
-                    </span>
+                    <Code2 className="size-3.5 text-emerald-300" />
                   </div>
-                ),
-              )}
+
+                  <span>{feature}</span>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -371,33 +378,64 @@ export function FormationsBrowser({
           ================================================== */}
 
           <div className="flex flex-col justify-center">
-            <div className="rounded-2xl border border-border bg-background p-6 shadow-sm">
-              {/* HEADER */}
 
+            <div
+              className="
+                rounded-2xl
+                border
+                border-white/10
+                bg-white
+                p-6
+                text-foreground
+                shadow-xl
+              "
+            >
+
+              {/* Header */}
               <div className="flex items-center justify-between">
-                <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10">
-                  <Ticket className="size-5 text-primary" />
+
+                <div
+                  className="
+                    flex
+                    size-11
+                    items-center
+                    justify-center
+                    rounded-xl
+                    bg-[#064E3B]/10
+                    text-[#064E3B]
+                  "
+                >
+                  <Ticket className="size-5" />
                 </div>
 
-                <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+                <span className="rounded-full bg-[#064E3B]/10 px-3 py-1 text-xs font-medium text-[#064E3B]">
                   {locale === "fr"
                     ? "Billet en ligne"
                     : "Online ticket"}
                 </span>
+
               </div>
 
-              {/* TICKET TYPE */}
-
+              {/* Ticket type */}
               <p className="mt-6 text-sm text-muted-foreground">
                 {locale === "fr"
                   ? "Billet de participation"
                   : "Participation ticket"}
               </p>
 
-              {/* SERVER PRICE NOTICE */}
-
-              <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
-                <p className="text-sm font-medium">
+              {/* Server price notice */}
+              <div
+                className="
+                  mt-3
+                  rounded-xl
+                  border
+                  border-[#064E3B]/20
+                  bg-[#064E3B]/5
+                  px-4
+                  py-3
+                "
+              >
+                <p className="text-sm font-medium text-[#064E3B]">
                   {locale === "fr"
                     ? "Prix déterminé de manière sécurisée"
                     : "Secure server-calculated price"}
@@ -410,14 +448,12 @@ export function FormationsBrowser({
                 </p>
               </div>
 
-              {/* DETAILS */}
-
+              {/* Details */}
               <div className="mt-5 space-y-3 rounded-xl border border-border bg-muted/30 p-4 text-sm">
+
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-muted-foreground">
-                    {locale === "fr"
-                      ? "Type"
-                      : "Type"}
+                    Type
                   </span>
 
                   <span className="font-medium">
@@ -450,18 +486,17 @@ export function FormationsBrowser({
                     UNIKIN
                   </span>
                 </div>
+
               </div>
 
-              {/* PAYMENT DESCRIPTION */}
-
+              {/* Payment description */}
               <p className="mt-5 text-sm leading-relaxed text-muted-foreground">
                 {locale === "fr"
                   ? "Payez votre billet en ligne de manière sécurisée avec Mobile Money. Le montant est vérifié par notre serveur avant l'initiation du paiement. Après confirmation, votre ticket personnel sera généré automatiquement."
                   : "Pay securely for your ticket using Mobile Money. The amount is verified by our server before payment begins. Once confirmed, your personal ticket will be generated automatically."}
               </p>
 
-              {/* CHECKOUT */}
-
+              {/* Checkout */}
               <div className="mt-6">
                 <CheckoutDialog
                   kind="event"
@@ -471,7 +506,14 @@ export function FormationsBrowser({
                   trigger={
                     <Button
                       size="lg"
-                      className="w-full gap-2"
+                      className="
+                        w-full
+                        gap-2
+                        bg-[#064E3B]
+                        text-white
+                        shadow-sm
+                        hover:bg-[#053D2E]
+                      "
                     >
                       <Ticket className="size-4" />
 
@@ -485,15 +527,15 @@ export function FormationsBrowser({
                 />
               </div>
 
-              {/* SECURITY */}
-
+              {/* Security */}
               <div className="mt-4 flex items-center justify-center gap-2 text-center text-xs text-muted-foreground">
-                <Smartphone className="size-4 text-primary" />
+                <Smartphone className="size-4 text-[#064E3B]" />
 
                 {locale === "fr"
                   ? "Paiement sécurisé par Mobile Money"
                   : "Secure Mobile Money payment"}
               </div>
+
             </div>
           </div>
         </div>
@@ -504,101 +546,78 @@ export function FormationsBrowser({
       ====================================================== */}
 
       <div className="mb-8 flex flex-col gap-4">
+
+        {/* Search */}
         <Input
           value={query}
           onChange={(event) =>
-            setQuery(
-              event.target.value,
-            )
+            setQuery(event.target.value)
           }
-          placeholder={t(
-            "common.search",
-          )}
-          aria-label={t(
-            "common.search",
-          )}
-          className="max-w-md"
+          placeholder={t("common.search")}
+          aria-label={t("common.search")}
+          className="
+            max-w-md
+            focus:border-[#064E3B]
+            focus:ring-[#064E3B]/20
+            dark:focus:border-emerald-500
+          "
         />
 
-        {/* CATEGORY FILTERS */}
-
+        {/* Category filters */}
         <div className="flex flex-wrap gap-2">
+
           <FilterChip
-            active={
-              category === "all"
-            }
-            onClick={() =>
-              setCategory("all")
-            }
+            active={category === "all"}
+            onClick={() => setCategory("all")}
           >
             {t("common.all")}
           </FilterChip>
 
           {usedCategories.map(
-            (
-              currentCategory,
-            ) => (
+            (currentCategory) => (
               <FilterChip
-                key={
-                  currentCategory
-                }
+                key={currentCategory}
                 active={
-                  category ===
-                  currentCategory
+                  category === currentCategory
                 }
                 onClick={() =>
-                  setCategory(
-                    currentCategory,
-                  )
+                  setCategory(currentCategory)
                 }
               >
                 {localize(
-                  categoryLabels[
-                    currentCategory
-                  ],
+                  categoryLabels[currentCategory],
                   locale,
                 )}
               </FilterChip>
             ),
           )}
+
         </div>
 
-        {/* LEVEL FILTERS */}
-
+        {/* Level filters */}
         <div className="flex flex-wrap gap-2">
+
           <FilterChip
-            active={
-              level === "all"
-            }
-            onClick={() =>
-              setLevel("all")
-            }
+            active={level === "all"}
+            onClick={() => setLevel("all")}
           >
             {t("common.all")}
           </FilterChip>
 
-          {levels.map(
-            (
-              currentLevel,
-            ) => (
-              <FilterChip
-                key={currentLevel}
-                active={
-                  level ===
-                  currentLevel
-                }
-                onClick={() =>
-                  setLevel(
-                    currentLevel,
-                  )
-                }
-              >
-                {t(
-                  `common.${currentLevel}` as const,
-                )}
-              </FilterChip>
-            ),
-          )}
+          {levels.map((currentLevel) => (
+            <FilterChip
+              key={currentLevel}
+              active={level === currentLevel}
+              onClick={() =>
+                setLevel(currentLevel)
+              }
+            >
+              {t(
+                `common.${currentLevel}` as const,
+              )}
+            </FilterChip>
+          ))}
+
         </div>
       </div>
 
@@ -616,16 +635,12 @@ export function FormationsBrowser({
         </div>
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map(
-            (formation) => (
-              <FormationCard
-                key={formation.id}
-                formation={
-                  formation
-                }
-              />
-            ),
-          )}
+          {filtered.map((formation) => (
+            <FormationCard
+              key={formation.id}
+              formation={formation}
+            />
+          ))}
         </div>
       )}
     </div>
@@ -650,15 +665,27 @@ function FilterChip({
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-full border px-4 py-1.5 text-sm font-medium transition-colors",
+        "rounded-full border px-4 py-1.5 text-sm font-medium transition-all",
 
         active
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground",
+          ? [
+              "border-[#064E3B]",
+              "bg-[#064E3B]",
+              "text-white",
+              "shadow-sm",
+            ]
+          : [
+              "border-border",
+              "bg-card",
+              "text-muted-foreground",
+              "hover:border-[#064E3B]/40",
+              "hover:bg-[#064E3B]/5",
+              "hover:text-[#064E3B]",
+              "dark:hover:text-emerald-400",
+            ],
       )}
     >
       {children}
     </button>
   )
 }
-
