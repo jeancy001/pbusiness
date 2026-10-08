@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 import { cn } from "@/lib/utils"
+import { TrainingBrowser } from "./training-browser"
 
 // ============================================================
 // CONSTANTS
@@ -254,6 +255,8 @@ export function FormationsBrowser({
       {/* =====================================================
           UPCOMING UNIKIN EVENT
       ====================================================== */}
+     <h1 className="text-white font-bold">Formation Gratuite</h1>
+     <TrainingBrowser/>
 
       <section
         className="
@@ -268,6 +271,10 @@ export function FormationsBrowser({
           shadow-xl
         "
       >
+
+
+
+
         {/* PB-pay green glow */}
         <div className="pointer-events-none absolute right-0 top-0 h-64 w-64 rounded-full bg-emerald-300/20 blur-3xl" />
 
