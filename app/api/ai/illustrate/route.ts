@@ -69,9 +69,13 @@ export async function POST(req: Request) {
   }
 
   const ext = image.mimeType.includes("png") ? "png" : image.mimeType.includes("webp") ? "webp" : "jpg"
+  const inline = `data:${image.mimeType};base64,${image.data}` // without Supabase (or if the upload fails), served inline
   const url = isStorageConfigured()
-    ? await uploadMedia(`ai/${mod.track.slug}/${hash}.${ext}`, Buffer.from(image.data, "base64"), image.mimeType)
-    : `data:${image.mimeType};base64,${image.data}` // without Supabase, served inline (not recommended)
+    ? await uploadMedia(`ai/${mod.track.slug}/${hash}.${ext}`, Buffer.from(image.data, "base64"), image.mimeType).catch((error) => {
+        console.error(`Illustration upload failed, serving inline: ${String(error?.message ?? error).slice(0, 160)}`)
+        return inline
+      })
+    : inline
 
   await cache.updateOne({ hash }, { $setOnInsert: { hash, url, prompt: parsed.data.prompt, userId: session.userId, createdAt: new Date() } }, { upsert: true })
   return Response.json({ url })

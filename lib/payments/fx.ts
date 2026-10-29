@@ -33,7 +33,16 @@ function markup() {
 
 export type FxRate = { rate: number; source: "live" | "fallback"; updatedAt?: string }
 
-export async function usdRate(currency: string): Promise<FxRate> {
+/**
+ * Swychr names CFA franc wallets per country (XAFC = Congo, XOFC = Côte d'Ivoire,
+ * XOFS = Senegal…). They are the same currencies as XAF / XOF for exchange rates.
+ */
+export function isoCurrency(currency: string) {
+  return /^(XAF|XOF)[A-Z]$/.test(currency) ? currency.slice(0, 3) : currency
+}
+
+export async function usdRate(swychrCurrency: string): Promise<FxRate> {
+  const currency = isoCurrency(swychrCurrency)
   if (currency === "USD") return { rate: 1, source: "live" }
 
   if (!cache || Date.now() - cache.at > TTL_MS) {

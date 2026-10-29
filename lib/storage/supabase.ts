@@ -7,7 +7,8 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 // receive time-limited signed read URLs only after access checks.
 
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+// Server-only key: the new "sb_secret_…" secret key, or the legacy service_role JWT.
+const serviceKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
 
 /** Private bucket: lesson videos and files, served through signed URLs. */
 export const COURSE_BUCKET = process.env.SUPABASE_COURSE_BUCKET || "courses"
@@ -22,7 +23,7 @@ export function isStorageConfigured() {
 
 function admin(): SupabaseClient {
   if (!url || !serviceKey) {
-    throw new Error("Supabase Storage is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.")
+    throw new Error("Supabase Storage is not configured. Set SUPABASE_URL and SUPABASE_SECRET_KEY.")
   }
   client ??= createClient(url, serviceKey, { auth: { persistSession: false } })
   return client

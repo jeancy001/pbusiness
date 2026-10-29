@@ -72,8 +72,15 @@ export function ensureCover(track: AiTrack): Promise<CoverDoc | null> {
 
     const { bytes, mimeType } = await compress(Buffer.from(image.data, "base64"), image.mimeType)
     const ext = mimeType.includes("png") ? "png" : mimeType.includes("webp") ? "webp" : "jpg"
-    const doc: CoverDoc = isStorageConfigured()
-      ? { slug: track.slug, url: await uploadMedia(`academy/covers/${track.slug}-${Date.now()}.${ext}`, bytes, mimeType), mimeType, style: AI_COVER_STYLE, createdAt: new Date() }
+    // Stored in Supabase when available; otherwise (or if the upload fails) in MongoDB.
+    const url = isStorageConfigured()
+      ? await uploadMedia(`academy/covers/${track.slug}-${Date.now()}.${ext}`, bytes, mimeType).catch((error) => {
+          console.error(`Cover upload failed (${track.slug}), keeping it in the database: ${String(error?.message ?? error).slice(0, 160)}`)
+          return null
+        })
+      : null
+    const doc: CoverDoc = url
+      ? { slug: track.slug, url, mimeType, style: AI_COVER_STYLE, createdAt: new Date() }
       : { slug: track.slug, data: new Binary(bytes), mimeType, style: AI_COVER_STYLE, createdAt: new Date() }
     await (await covers()).replaceOne({ slug: track.slug }, doc, { upsert: true })
     return doc

@@ -66,6 +66,8 @@ export async function sendPayout(id: PayoutDoc["_id"], adminId: string): Promise
 
   // One fixed id per payout: retrying after a timeout can never pay twice.
   const transactionId = `PO-${String(payout._id)}`.toUpperCase()
+  // Errors before the Swychr call can't have moved money, so they're safe to undo.
+  let reachedSwychr = false
   try {
     const methods = await paymentMethods(payout.country)
     if (!methods) throw new SwychrError("Payouts are not enabled for this country on the Swychr account.")
@@ -74,6 +76,7 @@ export async function sendPayout(id: PayoutDoc["_id"], adminId: string): Promise
       { _id: payout._id },
       { $set: { providerReference: transactionId, amountLocal: amount, currency: methods.currency, fxRate: rate } },
     )
+    reachedSwychr = true
     const res = await createPayout({
       transactionId,
       countryCode: payout.country,
@@ -86,13 +89,14 @@ export async function sendPayout(id: PayoutDoc["_id"], adminId: string): Promise
     await col.updateOne({ _id: payout._id }, { $set: { providerStatus: res.status, sentAt: new Date(), updatedAt: new Date() } })
     return { ok: true }
   } catch (error) {
-    if (error instanceof SwychrError) {
-      // Rejected up front (e.g. insufficient wallet balance): nothing was debited.
+    if (error instanceof SwychrError || !reachedSwychr) {
+      // Rejected up front (e.g. insufficient wallet balance) or failed before the call: nothing was debited.
+      const reason = String((error as Error)?.message ?? error).slice(0, 300)
       await col.updateOne(
         { _id: payout._id },
-        { $set: { status: "approved", note: error.message.slice(0, 300), updatedAt: new Date() }, $unset: { providerStatus: "" } },
+        { $set: { status: "approved", note: reason, updatedAt: new Date() }, $unset: { providerStatus: "" } },
       )
-      return { ok: false, error: error.message }
+      return { ok: false, error: reason }
     }
     // Network/unknown failure: the payout may exist at Swychr. Stay "processing";
     // status sync resolves it using the same transaction_id.
