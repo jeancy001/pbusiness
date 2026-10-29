@@ -15,15 +15,17 @@ import { cn } from '@/lib/utils'
 
 const NAV_LINKS: { href: string; key: TranslationKey }[] = [
   { href: '/formations', key: 'nav.formations' },
+  { href: '/academy', key: 'nav.academy' },
+  { href: '/community', key: 'nav.community' },
   { href: '/services', key: 'nav.services' },
   { href: '/pricing', key: 'nav.pricing' },
-  { href: '/source-code', key: 'nav.sourceCode' },
   { href: '/quote', key: 'nav.quote' },
   { href: '/contact', key: 'nav.contact' },
 ]
 
 function dashboardPath(role?: string) {
   if (role === 'client') return '/dashboard/client'
+  if (role === 'teacher') return '/dashboard/teacher'
   if (role === 'admin' || role === 'super-admin') return '/dashboard/admin'
   return '/dashboard/student'
 }
@@ -54,8 +56,8 @@ export function Navbar() {
       className={cn(
         'sticky top-0 z-50 w-full border-b transition-colors',
         scrolled
-          ? 'border-border bg-background/85 backdrop-blur-lg'
-          : 'border-transparent bg-background',
+          ? 'border-border bg-background/80 shadow-[0_1px_0_0_var(--border)] backdrop-blur-lg'
+          : 'border-transparent bg-background/0',
       )}
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
@@ -69,17 +71,18 @@ export function Navbar() {
           aria-label="Navigation principale"
         >
           {NAV_LINKS.map((link) => {
-            const active = pathname === link.href
+            const active = pathname === link.href || pathname.startsWith(`${link.href}/`)
 
             return (
               <Link
                 key={link.href}
                 href={link.href}
+                aria-current={active ? 'page' : undefined}
                 className={cn(
                   'rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                   active
-                    ? 'text-[#064E3B]'
-                    : 'text-muted-foreground hover:text-[#064E3B]',
+                    ? 'bg-accent text-foreground'
+                    : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
                 )}
               >
                 {t(link.key)}
@@ -121,12 +124,7 @@ export function Navbar() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="
-                  h-9 px-3
-                  hover:bg-emerald-50
-                  hover:text-[#064E3B]
-                  dark:hover:bg-emerald-950/30
-                "
+                className="h-9 px-3 text-foreground hover:bg-accent hover:text-foreground dark:text-foreground"
                 render={<Link href="/login" />}
               >
                 {t('nav.login')}
@@ -179,7 +177,7 @@ export function Navbar() {
             aria-label="Navigation mobile"
           >
             {NAV_LINKS.map((link) => {
-              const active = pathname === link.href
+              const active = pathname === link.href || pathname.startsWith(`${link.href}/`)
 
               return (
                 <Link

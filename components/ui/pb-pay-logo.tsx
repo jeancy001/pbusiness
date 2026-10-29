@@ -8,7 +8,7 @@ export function PBPayLogo({ className = "" }: PBPayLogoProps) {
   return (
     <Image
       src="/pb-pay-logo.png"
-      alt="PB-pay"
+      alt="P Business Online"
       width={48}
       height={48}
       className={className}

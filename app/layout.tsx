@@ -7,7 +7,6 @@ import { Inter, Space_Grotesk } from "next/font/google"
 import type React from "react"
 
 import { Providers } from "@/components/providers"
-import { PBPayLogo } from "@/components/ui/pb-pay-logo"
 import { getSession } from "@/lib/auth/session"
 
 import "./globals.css"
@@ -68,7 +67,7 @@ export const metadata: Metadata = {
   keywords: [
     "P Business Online",
     "PB Online",
-    "PB-pay",
+    "Linko Pay",
     "formations en ligne",
     "formation professionnelle",
     "certificats numériques",
@@ -130,7 +129,7 @@ export const metadata: Metadata = {
         url: "/web-logo.png",
         width: 1200,
         height: 630,
-        alt: "PB-pay — P Business Online",
+        alt: "P Business Online",
       },
     ],
   },
@@ -150,7 +149,7 @@ export const metadata: Metadata = {
     images: [
       {
         url: "/web-logo.png",
-        alt: "PB-pay — P Business Online",
+        alt: "P Business Online",
       },
     ],
 
@@ -181,29 +180,17 @@ export const metadata: Metadata = {
 
   icons: {
     icon: [
-      {
-        url: "/web-logo.png",
-        sizes: "any",
-      },
-      {
-        url: "/web-logo.png",
-        type: "image/png",
-        sizes: "512x512",
-      },
+      { url: "/icons/icon.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-32.png", type: "image/png", sizes: "32x32" },
+      { url: "/icons/icon-16.png", type: "image/png", sizes: "16x16" },
+      { url: "/icons/icon-192.png", type: "image/png", sizes: "192x192" },
     ],
-
-    apple: [
-      {
-        url: "/web-logo.png",
-        sizes: "180x180",
-      },
-    ],
-
-    shortcut: ["/web-logo.png"],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+    shortcut: ["/icons/icon-32.png"],
   },
 
   // ============================================================
-  // PWA
+  // PWA (app/manifest.ts)
   // ============================================================
 
   manifest: "/manifest.webmanifest",
@@ -259,14 +246,7 @@ export default async function RootLayout({
       className={`${inter.variable} ${spaceGrotesk.variable} bg-background`}
     >
       <body className="font-sans antialiased">
-        <Providers initialUser={initialUser}>
-          {/* PB-pay global brand mark */}
-          <div className="sr-only" aria-label="PB-pay">
-            <PBPayLogo className="size-7" />
-          </div>
-
-          {children}
-        </Providers>
+        <Providers initialUser={initialUser}>{children}</Providers>
 
         {process.env.NODE_ENV === "production" && <Analytics />}
       </body>

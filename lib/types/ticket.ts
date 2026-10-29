@@ -131,7 +131,7 @@ exchangeRate?: number
 
 * Mobile Money provider.
   */
-  paymentProvider?: "pawapay"
+  paymentProvider?: "swychr"
 
 /**
 

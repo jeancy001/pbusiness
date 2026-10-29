@@ -5,13 +5,17 @@ import {
   GraduationCap,
   LayoutDashboard,
   Repeat,
-  Settings,
   ShoppingCart,
   Sparkles,
+  Wallet,
+  BookOpen,
+  Bot,
+  CalendarDays,
   Users,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { useI18n } from "@/lib/i18n/context"
+import { PLATFORM_COMMISSION_PERCENT, TEACHER_SHARE_PERCENT } from "@/lib/payments/fees"
 import {
   localize,
   adminStats,
@@ -22,6 +26,12 @@ import {
   type PaymentStatus,
 } from "@/lib/mock-data"
 import type { AdminView } from "@/lib/data/dashboard"
+import type { PlatformRevenue } from "@/lib/payments/payouts"
+import type { AdminAnalytics } from "@/lib/lms/analytics"
+import { BarList, ChartCard, ColumnChart, LineChart } from "@/components/charts/charts"
+import { monthLabel, usdShort } from "@/components/charts/format"
+import Link from "next/link"
+import { ArrowRight } from "lucide-react"
 import {
   DashboardShell,
   StatCard,
@@ -31,32 +41,15 @@ import { Badge } from "@/components/ui/badge"
 import { RevenueChart } from "./revenue-chart"
 import { AiManagement } from "./ai-management"
 
-const nav: NavItem[] = [
-  {
-    href: "/dashboard/admin",
-    labelKey: "dash.overview",
-    icon: LayoutDashboard,
-  },
-  {
-    href: "/dashboard/admin",
-    labelKey: "admin.users",
-    icon: Users,
-  },
-  {
-    href: "/dashboard/admin",
-    labelKey: "admin.manageFormations",
-    icon: GraduationCap,
-  },
-  {
-    href: "/dashboard/admin",
-    labelKey: "admin.aiManagement",
-    icon: Sparkles,
-  },
-  {
-    href: "/dashboard/admin",
-    labelKey: "admin.settings",
-    icon: Settings,
-  },
+export const adminNav: NavItem[] = [
+  { href: "/dashboard/admin", labelKey: "dash.overview", icon: LayoutDashboard },
+  { href: "/dashboard/admin/courses", labelKey: "admin.manageFormations", icon: BookOpen },
+  { href: "/dashboard/admin/academy", labelKey: "nav.academy", icon: Bot },
+  { href: "/dashboard/admin/events", labelKey: "admin.events", icon: CalendarDays },
+  { href: "/dashboard/admin/users", labelKey: "admin.users", icon: Users },
+  { href: "/dashboard/admin/teachers", labelKey: "admin.teachers", icon: GraduationCap },
+  { href: "/dashboard/admin/payments", labelKey: "admin.payments", icon: Wallet },
+  { href: "/dashboard/admin#ai", labelKey: "admin.aiManagement", icon: Sparkles },
 ]
 
 const statIcons: Record<string, LucideIcon> = {
@@ -76,8 +69,12 @@ type PaymentRow = {
 
 export function AdminDashboard({
   data = null,
+  revenue = null,
+  analytics = null,
 }: {
   data?: AdminView | null
+  revenue?: PlatformRevenue | null
+  analytics?: AdminAnalytics | null
 }) {
   const { t, locale } = useI18n()
 
@@ -126,7 +123,38 @@ export function AdminDashboard({
       }))
 
   return (
-    <DashboardShell nav={nav} titleKey="admin.title">
+    <DashboardShell nav={adminNav} titleKey="admin.title">
+      {revenue && (
+        <section className="mb-6 overflow-hidden rounded-2xl bg-[#064E3B] text-white shadow-sm">
+          <div className="grid gap-px bg-white/10 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              [locale === "fr" ? "Ventes totales" : "Gross sales", revenue.grossSalesUsd],
+              [locale === "fr" ? `Part des formateurs · ${TEACHER_SHARE_PERCENT} %` : `Teachers' share · ${TEACHER_SHARE_PERCENT}%`, revenue.teacherEarningsUsd],
+              [locale === "fr" ? `Commission admin · ${PLATFORM_COMMISSION_PERCENT} %` : `Admin commission · ${PLATFORM_COMMISSION_PERCENT}%`, revenue.courseCommissionUsd],
+              [locale === "fr" ? "Disponible au retrait" : "Available to withdraw", revenue.availableUsd],
+            ].map(([label, value], i) => (
+              <div key={label as string} className="bg-[#064E3B] px-6 py-5">
+                <p className="text-xs uppercase tracking-wider text-emerald-200/80">{label}</p>
+                <p className={`mt-2 font-heading text-2xl font-bold tabular-nums ${i === 3 ? "text-emerald-300" : ""}`}>
+                  ${(value as number).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 px-6 py-3 text-sm text-emerald-50/80">
+            <span>
+              {locale === "fr"
+                ? `+ certificats, modules IA et frais de retrait : $${(revenue.otherSalesUsd + revenue.payoutFeesUsd).toFixed(2)}`
+                : `+ certificates, AI modules and payout fees: $${(revenue.otherSalesUsd + revenue.payoutFeesUsd).toFixed(2)}`}
+            </span>
+            <Link href="/dashboard/admin/payments" className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 font-medium text-[#064E3B] hover:bg-emerald-50">
+              {locale === "fr" ? "Retirer" : "Withdraw"}
+              <ArrowRight className="size-4" />
+            </Link>
+          </div>
+        </section>
+      )}
+
       {/* KPI cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
@@ -158,91 +186,17 @@ export function AdminDashboard({
         />
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Revenue chart */}
-        <div
-          className="
-            rounded-2xl border border-border bg-card p-5
-            transition-all duration-200
-            hover:border-[#064E3B]/20 hover:shadow-md
-            dark:hover:border-emerald-800/60
-          "
-        >
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-heading text-base font-semibold">
-              {t("admin.revenueChart")}
-            </h2>
-
-            <div className="size-2 rounded-full bg-[#064E3B] dark:bg-emerald-500" />
-          </div>
-
+      {analytics ? (
+        <AdminCharts analytics={analytics} />
+      ) : (
+        <div className="mt-6 rounded-2xl border border-border bg-card p-5">
+          <h2 className="mb-4 font-heading text-base font-semibold">{t("admin.revenueChart")}</h2>
           <RevenueChart data={revenueSeries} />
         </div>
-
-        {/* Popular formations */}
-        <div
-          className="
-            rounded-2xl border border-border bg-card p-5
-            transition-all duration-200
-            hover:border-[#064E3B]/20 hover:shadow-md
-            dark:hover:border-emerald-800/60
-          "
-        >
-          <h2 className="mb-4 font-heading text-base font-semibold">
-            {t("admin.popularFormations")}
-          </h2>
-
-          <div className="flex flex-col gap-3">
-            {popular.map((f, i) => (
-              <div
-                key={f.id}
-                className="
-                  group flex items-center gap-3 rounded-lg p-2
-                  transition-colors duration-150
-                  hover:bg-[#064E3B]/5
-                  dark:hover:bg-emerald-950/40
-                "
-              >
-                <span
-                  className="
-                    flex size-7 shrink-0 items-center justify-center rounded-full
-                    bg-[#064E3B]/10
-                    font-heading text-sm font-semibold text-[#064E3B]
-                    dark:bg-emerald-950/60 dark:text-emerald-400
-                  "
-                >
-                  {i + 1}
-                </span>
-
-                <div className="min-w-0 flex-1">
-                  <p
-                    className="
-                      truncate text-sm font-medium text-foreground
-                      transition-colors
-                      group-hover:text-[#064E3B]
-                      dark:group-hover:text-emerald-400
-                    "
-                  >
-                    {localize(f.title, locale)}
-                  </p>
-
-                  <p className="text-xs text-muted-foreground">
-                    {f.studentsCount.toLocaleString()}{" "}
-                    {t("admin.studentsLabel")}
-                  </p>
-                </div>
-
-                <span className="text-sm font-semibold text-[#064E3B] dark:text-emerald-400">
-                  ${f.priceUsd}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* AI management */}
-      <div className="mt-6">
+      <div id="ai" className="mt-6 scroll-mt-24">
         <AiManagement />
       </div>
 
@@ -351,5 +305,58 @@ export function AdminDashboard({
         </div>
       </section>
     </DashboardShell>
+  )
+}
+
+function AdminCharts({ analytics }: { analytics: AdminAnalytics }) {
+  const { locale } = useI18n()
+  const fr = locale === "fr"
+  const series = [
+    { key: "course", label: fr ? "Cours" : "Courses", color: "var(--series-1)" },
+    { key: "certificate", label: fr ? "Certificats" : "Certificates", color: "var(--series-2)" },
+    { key: "academy", label: "Linko Academy", color: "var(--series-3)" },
+    { key: "other", label: fr ? "Autres" : "Other", color: "var(--series-4)" },
+  ]
+  const revenue = analytics.revenue.map((r) => ({ label: monthLabel(r.month, locale), values: { course: r.course, certificate: r.certificate, academy: r.academy, other: r.other } }))
+  const total = analytics.revenue.reduce((sum, r) => sum + r.course + r.certificate + r.academy + r.other, 0)
+
+  return (
+    <div className="mt-6 grid gap-6 xl:grid-cols-3">
+      <ChartCard
+        className="xl:col-span-2"
+        title={fr ? "Ventes par mois" : "Sales by month"}
+        subtitle={fr ? `12 derniers mois · ${usdShort(total)} au total` : `Last 12 months · ${usdShort(total)} total`}
+        series={series}
+        table={{
+          columns: [fr ? "Mois" : "Month", ...series.map((s) => s.label), "Total"],
+          rows: analytics.revenue.map((r) => [monthLabel(r.month, locale), usdShort(r.course), usdShort(r.certificate), usdShort(r.academy), usdShort(r.other), usdShort(r.course + r.certificate + r.academy + r.other)]),
+        }}
+      >
+        <ColumnChart data={revenue} series={series} format={usdShort} ariaLabel={fr ? "Ventes par mois et par source" : "Sales by month and source"} />
+      </ChartCard>
+
+      <ChartCard
+        title={fr ? "Cours les plus suivis" : "Most popular courses"}
+        subtitle={fr ? "Nombre d'étudiants inscrits" : "Enrolled students"}
+      >
+        <BarList
+          items={analytics.topCourses.map((c) => ({ label: localize(c.title, locale), value: c.students }))}
+          empty={fr ? "Aucune inscription pour le moment." : "No enrollments yet."}
+        />
+      </ChartCard>
+
+      <ChartCard
+        className="xl:col-span-3"
+        title={fr ? "Nouvelles inscriptions" : "New enrollments"}
+        subtitle={fr ? "Par mois, 12 derniers mois" : "Per month, last 12 months"}
+        table={{ columns: [fr ? "Mois" : "Month", fr ? "Inscriptions" : "Enrollments"], rows: analytics.enrollments.map((e) => [monthLabel(e.month, locale), e.count]) }}
+      >
+        <LineChart
+          data={analytics.enrollments.map((e) => ({ label: monthLabel(e.month, locale), value: e.count }))}
+          ariaLabel={fr ? "Inscriptions par mois" : "Enrollments per month"}
+          height={180}
+        />
+      </ChartCard>
+    </div>
   )
 }

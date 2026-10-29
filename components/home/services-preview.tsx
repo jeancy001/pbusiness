@@ -5,74 +5,30 @@ import { ArrowRight } from "lucide-react"
 import { useI18n } from "@/lib/i18n/context"
 import { services } from "@/lib/mock-data"
 import { ServiceCard } from "@/components/services/service-card"
+import { SectionHeading } from "@/components/site/section-heading"
 import { Button } from "@/components/ui/button"
 
 export function ServicesPreview() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
 
   return (
-    <section className="mx-auto max-w-6xl px-4 py-20">
-
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-
-        <div className="max-w-2xl">
-          <h2
-            className="
-              text-balance
-              font-heading
-              text-3xl
-              font-bold
-              tracking-tight
-              md:text-4xl
-            "
-          >
-            {t("section.services.title")}
-          </h2>
-
-          <div className="mt-3 h-1 w-14 rounded-full bg-[#064E3B]" />
-
-          <p className="mt-4 text-pretty text-muted-foreground">
-            {t("section.services.subtitle")}
-          </p>
-        </div>
-
-        {/* View all */}
-        <Button
-          asChild
-          variant="outline"
-          className="
-            border-[#064E3B]/30
-            text-[#064E3B]
-            transition-colors
-
-            hover:border-[#064E3B]
-            hover:bg-[#064E3B]
-            hover:text-white
-
-            dark:border-emerald-800
-            dark:text-emerald-400
-            dark:hover:bg-[#064E3B]
-            dark:hover:text-white
-          "
-        >
-          <Link href="/services">
+    <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+      <SectionHeading
+        eyebrow={locale === "fr" ? "Agence" : "Agency"}
+        title={t("section.services.title")}
+        subtitle={t("section.services.subtitle")}
+        action={
+          <Button variant="outline" render={<Link href="/services" />}>
             {t("common.viewAll")}
             <ArrowRight className="size-4" />
-          </Link>
-        </Button>
-      </div>
-
-      {/* Services */}
-      <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          </Button>
+        }
+      />
+      <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {services.slice(0, 3).map((s) => (
-          <ServiceCard
-            key={s.id}
-            service={s}
-          />
+          <ServiceCard key={s.id} service={s} />
         ))}
       </div>
-
     </section>
   )
 }

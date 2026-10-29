@@ -165,8 +165,6 @@ export function QuoteForm() {
           {t('quote.title')}
         </h1>
 
-        <div className="mt-3 h-1 w-14 rounded-full bg-[#064E3B]" />
-
         <p className="mt-4 text-pretty text-muted-foreground">
           {t('quote.subtitle')}
         </p>

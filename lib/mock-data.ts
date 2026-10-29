@@ -2,10 +2,11 @@ import type { Locale } from './i18n/dictionary'
 
 // Bilingual editorial string. Later the backend returns the same shape or a
 // single localized string resolved server-side / by Gemini translation.
-export type LocalizedText = { fr: string; en: string }
+export type LocalizedText = { fr: string; en: string; tw?: string; gaa?: string; ee?: string }
 
+// Ghanaian locales fall back to English, which is what most learners there read.
 export function localize(text: LocalizedText, locale: Locale): string {
-  return text[locale] ?? text.fr
+  return text[locale] ?? (locale === 'fr' ? text.fr : text.en ?? text.fr)
 }
 
 export type Level = 'beginner' | 'intermediate' | 'advanced'
@@ -44,12 +45,24 @@ export type Formation = {
   moduleCount: number
   studentsCount: number
   rating: number
+  /** Number of student ratings behind `rating` (0/absent: no reviews yet, `rating` is the default). */
+  ratingCount?: number
   popular?: boolean
   isNew?: boolean
   objectives: LocalizedText[]
   prerequisites: LocalizedText[]
   modules: Module[]
   image: string
+  teacherId?: string
+  teacherName?: string
+  /**
+   * Who earns from sales: "platform" (created by the admin or AI — 100% to the
+   * admin) or "teacher" (created by its teacher — 90% teacher, 10% admin).
+   * Unset on older stored courses: see courseEarner().
+   */
+  revenueOwner?: "platform" | "teacher"
+  /** Set once Gemini has translated the course into every platform language. */
+  translatedAt?: Date
 }
 
 export const categoryLabels: Record<FormationCategory, LocalizedText> = {
@@ -93,7 +106,7 @@ export const formations: Formation[] = [
     },
     category: 'programming',
     level: 'beginner',
-    priceUsd: 15,
+    priceUsd: 19,
     durationHours: 24,
     moduleCount: 8,
     studentsCount: 1240,
@@ -122,7 +135,7 @@ export const formations: Formation[] = [
     },
     category: 'web',
     level: 'intermediate',
-    priceUsd: 15,
+    priceUsd: 19,
     durationHours: 40,
     moduleCount: 12,
     studentsCount: 980,
@@ -151,7 +164,7 @@ export const formations: Formation[] = [
     },
     category: 'mobile',
     level: 'intermediate',
-    priceUsd: 18,
+    priceUsd: 19,
     durationHours: 36,
     moduleCount: 10,
     studentsCount: 640,
@@ -179,7 +192,7 @@ export const formations: Formation[] = [
     },
     category: 'saas',
     level: 'advanced',
-    priceUsd: 22,
+    priceUsd: 19,
     durationHours: 30,
     moduleCount: 9,
     studentsCount: 410,
@@ -208,7 +221,7 @@ export const formations: Formation[] = [
     },
     category: 'api',
     level: 'intermediate',
-    priceUsd: 16,
+    priceUsd: 19,
     durationHours: 22,
     moduleCount: 7,
     studentsCount: 520,
@@ -236,7 +249,7 @@ export const formations: Formation[] = [
     },
     category: 'payments',
     level: 'intermediate',
-    priceUsd: 17,
+    priceUsd: 19,
     durationHours: 18,
     moduleCount: 6,
     studentsCount: 300,
@@ -513,7 +526,7 @@ export const payments: Payment[] = [
     label: { fr: 'Module — Développement web', en: 'Module — Web development' },
     amountUsd: 15,
     status: 'success',
-    method: 'AvadaPay',
+    method: 'Swychr',
     date: '2026-08-09',
   },
   {
@@ -529,7 +542,7 @@ export const payments: Payment[] = [
     label: { fr: 'Abonnement étudiant', en: 'Student subscription' },
     amountUsd: 2,
     status: 'success',
-    method: 'PawaPay',
+    method: 'Swychr',
     date: '2026-08-01',
   },
   {
@@ -537,7 +550,7 @@ export const payments: Payment[] = [
     label: { fr: 'Frais d’inscription', en: 'Registration fee' },
     amountUsd: 5,
     status: 'failed',
-    method: 'AvadaPay',
+    method: 'Swychr',
     date: '2026-07-30',
   },
 ]
@@ -545,11 +558,11 @@ export const payments: Payment[] = [
 // ---------------------------------------------------------------------------
 // Pricing (admin-editable in a real backend)
 
+// Public price list (USD). Mirrors lib/lms/catalog.ts, which the server charges.
 export const pricing = {
-  registrationFee: 5,
-  programmingModule: 15,
-  studentSubscription: 2,
-  certificate: 19.9,
+  course: 19,
+  aiCourse: 19,
+  certificate: 49.99,
 }
 
 // ---------------------------------------------------------------------------

@@ -85,7 +85,7 @@ export async function getClientDashboard(
     const payments: PaymentView[] = payRows.map((p) => ({
       id: p.reference,
       amountUsd: p.amountUsd,
-      method: p.provider === "pawapay" ? "PawaPay" : "AvadaPay",
+      method: "Swychr",
       status: p.status as PaymentStatus,
       date: p.createdAt.toISOString().slice(0, 10),
     }))
@@ -131,7 +131,7 @@ export async function getAdminDashboard(): Promise<AdminView | null> {
     const recentPayments: PaymentView[] = recentDocs.map((p) => ({
       id: p.reference,
       amountUsd: p.amountUsd,
-      method: p.provider === "pawapay" ? "PawaPay" : "AvadaPay",
+      method: "Swychr",
       status: p.status as PaymentStatus,
       date: p.createdAt.toISOString().slice(0, 10),
     }))
@@ -159,8 +159,8 @@ export async function getAdminDashboard(): Promise<AdminView | null> {
 
 function mockPaymentsFallback(): PaymentView[] {
   return [
-    { id: "PAY-1042", amountUsd: 45, method: "PawaPay", status: "success", date: "2026-08-10" },
-    { id: "PAY-1041", amountUsd: 120, method: "AvadaPay", status: "pending", date: "2026-08-06" },
-    { id: "PAY-1040", amountUsd: 2, method: "PawaPay", status: "success", date: "2026-08-01" },
+    { id: "PAY-1042", amountUsd: 45, method: "Swychr", status: "success", date: "2026-08-10" },
+    { id: "PAY-1041", amountUsd: 120, method: "Swychr", status: "pending", date: "2026-08-06" },
+    { id: "PAY-1040", amountUsd: 2, method: "Swychr", status: "success", date: "2026-08-01" },
   ]
 }

@@ -5,7 +5,13 @@ import { formations as formationsCol, users, enrollments, projects, payments } f
 import { formations as seedFormations } from "@/lib/mock-data"
 
 // One-shot seed. Idempotent: safe to call multiple times.
-export async function POST() {
+// It creates demo accounts (including an admin), so it only runs when
+// SEED_SECRET is set and sent as the x-seed-secret header.
+export async function POST(req: Request) {
+  const secret = process.env.SEED_SECRET
+  if (!secret || req.headers.get("x-seed-secret") !== secret) {
+    return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 })
+  }
   if (!isDbConfigured()) {
     return NextResponse.json({ ok: false, error: "MONGODB_URI not set" }, { status: 400 })
   }

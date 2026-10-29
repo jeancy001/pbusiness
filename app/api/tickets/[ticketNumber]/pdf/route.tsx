@@ -337,11 +337,11 @@ function TicketDocument({
 
         <View style={styles.header}>
           <Text style={styles.brand}>
-            PB BUSINESS • UNIKIN
+            P BUSINESS ONLINE
           </Text>
 
           <Text style={styles.title}>
-            TICKET DE FORMATION
+            TICKET · EVENT PASS
           </Text>
 
           <Text style={styles.ticketCode}>
@@ -394,8 +394,7 @@ function TicketDocument({
             </Text>
 
             <Text style={styles.value}>
-              {ticket.location ||
-                "UNIKIN"}
+              {ticket.location || "—"}
             </Text>
           </View>
         </View>
@@ -485,7 +484,7 @@ function TicketDocument({
               styles.footerText
             }
           >
-            PB BUSINESS × UNIKIN
+            P BUSINESS ONLINE
           </Text>
 
           <Text
@@ -506,7 +505,7 @@ function TicketDocument({
 // GET TICKET PDF
 //
 // Route:
-// /api/tickets/[ticketCode]/pdf
+// /api/tickets/[ticketNumber]/pdf
 // ============================================================
 
 export async function GET(
@@ -516,7 +515,7 @@ export async function GET(
     params,
   }: {
     params: Promise<{
-      ticketCode: string
+      ticketNumber: string
     }>
   },
 ) {
@@ -543,7 +542,7 @@ export async function GET(
     // ========================================================
 
     const {
-      ticketCode: rawTicketCode,
+      ticketNumber: rawTicketCode,
     } = await params
 
     let ticketCode = ""

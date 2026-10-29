@@ -11,9 +11,9 @@ import {
   GraduationCap,
   Lock,
   PlayCircle,
-  Star,
   Users,
 } from "lucide-react"
+import { RatingSummary } from "@/components/lms/stars"
 import { useI18n } from "@/lib/i18n/context"
 import {
   localize,
@@ -90,10 +90,7 @@ export function FormationDetail({
           {/* Stats */}
           <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3 text-sm text-muted-foreground">
 
-            <span className="inline-flex items-center gap-1.5">
-              <Star className="size-4 fill-warning text-warning" />
-              {formation.rating.toFixed(1)}
-            </span>
+            <RatingSummary rating={formation.rating} count={formation.ratingCount} className="text-sm" />
 
             <span className="inline-flex items-center gap-1.5">
               <Users className="size-4 text-[#064E3B] dark:text-emerald-400" />

@@ -176,7 +176,7 @@ export type TicketDoc = {
     /**
      * Payment provider.
      */
-    provider: "pawapay"
+    provider: "swychr"
 
     /**
      * Internal payment reference.
@@ -187,7 +187,7 @@ export type TicketDoc = {
     reference: string
 
     /**
-     * PawaPay provider reference.
+     * Swychr provider reference.
      */
     providerRef?: string
 

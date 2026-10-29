@@ -11,7 +11,7 @@ export function ServicesList() {
   const { t } = useI18n()
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12">
+    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
 
       {/* Page header */}
       <header className="mb-10 max-w-2xl">
@@ -28,8 +28,6 @@ export function ServicesList() {
         >
           {t('section.services.title')}
         </h1>
-
-        <div className="mt-3 h-1 w-14 rounded-full bg-[#064E3B]" />
 
         <p className="mt-4 text-pretty text-muted-foreground">
           {t('section.services.subtitle')}

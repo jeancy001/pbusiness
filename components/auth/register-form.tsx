@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 
 export function RegisterForm() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { register } = useAuth()
   const router = useRouter()
 
@@ -33,7 +33,7 @@ export function RegisterForm() {
     setError(null)
     setLoading(true)
 
-    const res = await register(name, email, password, role)
+    const res = await register(name, email, password, role, locale)
 
     setLoading(false)
 
@@ -50,9 +50,9 @@ export function RegisterForm() {
   }
 
   return (
-    <div className="rounded-2xl border border-[#064E3B]/15 bg-card p-8 shadow-sm transition-all duration-200 hover:border-[#064E3B]/25 hover:shadow-md dark:border-emerald-800/40 dark:hover:border-emerald-700/60">
+    <div className="w-full">
       {/* Header */}
-      <h1 className="font-heading text-2xl font-bold text-foreground">
+      <h1 className="font-heading text-3xl font-bold tracking-tight text-foreground">
         {t("auth.register.title")}
       </h1>
 

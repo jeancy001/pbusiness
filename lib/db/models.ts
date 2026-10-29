@@ -14,6 +14,7 @@ import type {
 export type Role =
   | "student"
   | "client"
+  | "teacher"
   | "admin"
 
 export type Localized =
@@ -33,6 +34,18 @@ export interface UserDoc {
   passwordHash: string
 
   role: Role
+
+  /**
+   * Teacher profile fields. Teachers are created by an admin.
+   */
+  expertise?: string
+
+  bio?: string
+
+  createdBy?: string
+
+  /** Preferred language for emails (fr, en, tw, gaa, ee). */
+  locale?: string
 
   createdAt: Date
 }
@@ -163,7 +176,7 @@ export interface QuoteDoc {
 // ============================================================
 
 export type PaymentProvider =
-  | "pawapay"
+  | "swychr"
 
 // ============================================================
 // PAYMENT KINDS
@@ -174,6 +187,8 @@ export type PaymentKind =
   | "subscription"
   | "project"
   | "event"
+  | "certificate"
+  | "ai_module"
 
 // ============================================================
 // PAYMENT STATUS
@@ -194,7 +209,7 @@ export interface PaymentDoc {
   /**
    * Internal unique payment reference.
    *
-   * Also used as the PawaPay deposit ID.
+   * Also sent to Swychr as transaction_id.
    */
   reference: string
 
@@ -246,7 +261,7 @@ export interface PaymentDoc {
   // ==========================================================
 
   /**
-   * Final converted amount sent to PawaPay.
+   * Final converted amount sent to Swychr.
    */
   amount: number
 
@@ -264,6 +279,41 @@ export interface PaymentDoc {
    * USD → local currency exchange rate.
    */
   exchangeRate?: number
+
+  // ==========================================================
+  // TEACHER REVENUE (course sales only)
+  // ==========================================================
+
+  /**
+   * Teacher of the course at the time of sale, so
+   * reassigning a course never moves past earnings.
+   */
+  teacherId?: string
+
+  /**
+   * Teacher's share of amountUsd, credited on success.
+   */
+  teacherShareUsd?: number
+
+  // ==========================================================
+  // CALLBACK AUTHENTICATION
+  // ==========================================================
+
+  /**
+   * SHA-256 of the per-payment secret embedded in the
+   * Swychr callback URLs. The raw secret is never stored.
+   */
+  callbackTokenHash?: string
+
+  /**
+   * Last raw callback body, kept for reconciliation.
+   */
+  callbackPayload?: unknown
+
+  /**
+   * Admin who confirmed the payment manually, if any.
+   */
+  confirmedBy?: string
 
   // ==========================================================
   // MOBILE MONEY DETAILS
@@ -359,9 +409,9 @@ export interface TicketDoc {
   // ==========================================================
 
   /**
-   * Event date.
+   * Event date (absent while the date is still to be announced).
    */
-  eventDate: Date
+  eventDate?: Date
 
   /**
    * Optional event end date.

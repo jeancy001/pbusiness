@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { formations as mockFormations } from "@/lib/mock-data"
 import { getFormationBySlug } from "@/lib/data/catalog"
+import { ratingSummaries } from "@/lib/lms/ratings"
 import { FormationDetail } from "@/components/formations/formation-detail"
 
 // Seed known slugs from bundled data; DB-only slugs still render dynamically.
@@ -27,5 +28,6 @@ export default async function FormationPage({
   const { slug } = await params
   const formation = await getFormationBySlug(slug)
   if (!formation) notFound()
-  return <FormationDetail formation={formation} />
+  const rated = (await ratingSummaries([`formation:${formation.slug}`])).get(`formation:${formation.slug}`)
+  return <FormationDetail formation={rated ? { ...formation, rating: rated.avg, ratingCount: rated.count } : { ...formation, ratingCount: 0 }} />
 }

@@ -10,32 +10,15 @@ import { Badge } from "@/components/ui/badge"
 export function PricingView() {
   const { t, locale } = useI18n()
 
+  const fr = locale === "fr"
   const formationTiers = [
-    {
-      key: "pricing.registration",
-      price: pricing.registrationFee,
-      unit: "",
-    },
-    {
-      key: "pricing.module",
-      price: pricing.programmingModule,
-      unit: "",
-      highlight: true,
-    },
-    {
-      key: "pricing.studentSub",
-      price: pricing.studentSubscription,
-      unit: t("common.perMonth"),
-    },
-    {
-      key: "pricing.certificate",
-      price: pricing.certificate,
-      unit: "",
-    },
-  ] as const
+    { key: "course", label: fr ? "Formation complète" : "Full course", price: pricing.course, unit: fr ? "/ cours" : "/ course", highlight: true },
+    { key: "ai", label: fr ? "Cours Linko Academy (tuteur, tous les modules)" : "Linko Academy course (tutor, all modules)", price: pricing.aiCourse, unit: fr ? "/ cours" : "/ course" },
+    { key: "cert", label: fr ? "Certification LinkoPayroll" : "LinkoPayroll certification", price: pricing.certificate, unit: fr ? "après l'examen" : "after the exam" },
+  ]
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12">
+    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
 
       {/* =====================================================
           HEADER
@@ -45,8 +28,6 @@ export function PricingView() {
         <h1 className="text-balance font-heading text-3xl font-bold tracking-tight md:text-4xl">
           {t("pricing.title")}
         </h1>
-
-        <div className="mx-auto mt-3 h-1 w-14 rounded-full bg-[#064E3B]" />
 
         <p className="mt-4 text-pretty text-muted-foreground">
           {t("pricing.subtitle")}
@@ -105,7 +86,7 @@ export function PricingView() {
                 )}
 
                 <h3 className="text-sm font-medium text-muted-foreground">
-                  {t(tier.key)}
+                  {tier.label}
                 </h3>
 
                 <div className="mt-2 flex items-baseline gap-1">

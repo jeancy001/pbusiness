@@ -14,7 +14,7 @@ export function ResetForm() {
   const [sent, setSent] = useState(false)
 
   return (
-    <div className="rounded-2xl border border-[#064E3B]/15 bg-card p-8 shadow-sm transition-all duration-200 hover:border-[#064E3B]/25 hover:shadow-md dark:border-emerald-800/40 dark:hover:border-emerald-700/60">
+    <div className="w-full">
       {sent ? (
         <div className="text-center">
           {/* Success Icon */}
@@ -22,7 +22,7 @@ export function ResetForm() {
             <MailCheck className="size-6" />
           </div>
 
-          <h1 className="mt-5 font-heading text-2xl font-bold text-foreground">
+          <h1 className="mt-5 font-heading text-3xl font-bold tracking-tight text-foreground">
             {t("auth.reset.title")}
           </h1>
 
@@ -41,7 +41,7 @@ export function ResetForm() {
       ) : (
         <>
           {/* Header */}
-          <h1 className="font-heading text-2xl font-bold text-foreground">
+          <h1 className="font-heading text-3xl font-bold tracking-tight text-foreground">
             {t("auth.reset.title")}
           </h1>
 

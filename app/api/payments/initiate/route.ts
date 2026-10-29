@@ -2,637 +2,200 @@ import { randomUUID } from "crypto"
 import { z } from "zod"
 
 import { isDbConfigured } from "@/lib/db/mongodb"
-import {
-payments,
-type PaymentKind,
-} from "@/lib/db/models"
-
+import { payments, type PaymentDoc } from "@/lib/db/models"
+import { certificates } from "@/lib/db/lms"
 import { getSession } from "@/lib/auth/session"
 import { getFormationBySlug } from "@/lib/data/catalog"
-
+import { bestAttempt } from "@/lib/lms/queries"
+import { AI_COURSE_PRICE_USD, CERTIFICATE_PRICE_USD, CERTIFIER_NAME, EXAM_PASS_SCORE } from "@/lib/lms/catalog"
+import { findAiModule, findAiTrack } from "@/lib/lms/ai-tracks"
+import { getEvent } from "@/lib/events/data"
+import { teacherRevenueShare } from "@/lib/payments/fees"
+import { courseEarner } from "@/lib/payments/revenue-owner"
+import { SWYCHR_DIGITAL_CHARGE_RATE, convertFromUsd, customerPaysDigitalCharge } from "@/lib/payments/fx"
+import { normalizeMobile } from "@/lib/payments/mobile"
+import { newCallbackToken } from "@/lib/payments/settle"
 import {
-initiatePayment,
-pawapayConfigured,
-} from "@/lib/payments/providers"
-
-// ============================================================
-// EVENT CONFIGURATION
-// ============================================================
-//
-// The server is the ONLY trusted source for
-// event names and prices.
-//
-// Never accept event prices from the client.
-// ============================================================
-
-const EVENTS = {
-"unikin-programming-event-2026": {
-priceUsd: 15,
-
-
-label: {
-  fr: "Billet — Événement de Programmation des Étudiants de l'UNIKIN",
-  en: "Ticket — UNIKIN Students Programming Event",
-},
-
-
-},
-} as const
-
-// ============================================================
-// REQUEST VALIDATION
-// ============================================================
+  SwychrError,
+  createPaymentRequest,
+  paymentMethods,
+  requiresOrangeOtp,
+  swychrConfigured,
+  swychrCountries,
+} from "@/lib/payments/swychr"
 
 const schema = z.object({
-/**
-
-* These values must match the frontend
-* CheckoutDialog and the database PaymentKind.
-  */
-  kind: z.enum([
-  "formation",
-  "subscription",
-  "project",
-  "event",
-  ]),
-
-/**
-
-* Required for formation and event payments.
-  */
-  targetSlug: z
-  .string()
-  .trim()
-  .min(1)
-  .max(120)
-  .optional(),
-
-phone: z
-.string()
-.trim()
-.min(6)
-.max(30),
-
-network: z
-.string()
-.trim()
-.min(1)
-.max(80)
-.optional(),
-
-country: z
-.string()
-.trim()
-.length(2)
-.transform((value) =>
-value.toUpperCase(),
-),
+  kind: z.enum(["formation", "subscription", "project", "event", "certificate", "ai_module"]),
+  targetSlug: z.string().trim().min(1).max(120).optional(),
+  country: z.string().trim().length(2).transform((v) => v.toUpperCase()),
+  paymentMethod: z.string().trim().min(1).max(40),
+  mobile: z.string().trim().regex(/^\+?[0-9 ]{6,20}$/, "Invalid mobile number"),
+  omOtp: z.string().trim().max(12).optional(),
 })
 
-// ============================================================
-// PAYMENT ROUTE
-// ============================================================
+const fail = (error: string, status: number) => Response.json({ ok: false, provider: "swychr", error }, { status })
 
-export async function POST(
-req: Request,
-) {
-try {
-// ========================================================
-// PAWAPAY CONFIGURATION
-// ========================================================
+export async function POST(req: Request) {
+  try {
+    if (!swychrConfigured()) return fail("Payments are not configured. Set ACCOUNTPE_API_TOKEN.", 503)
+    if (!isDbConfigured()) return fail("Payments require a configured database.", 503)
 
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "")
+    if (!appUrl?.startsWith("https://")) {
+      return fail("NEXT_PUBLIC_APP_URL must be a public https URL so Swychr can confirm payments.", 503)
+    }
 
-if (!pawapayConfigured()) {
-  return Response.json(
-    {
-      ok: false,
-      provider: "pawapay",
+    const parsed = schema.safeParse(await req.json().catch(() => null))
+    if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Invalid payment request.", 400)
+    const { kind, country, paymentMethod, omOtp } = parsed.data
+    let targetSlug = parsed.data.targetSlug || undefined
 
-      error:
-        "PawaPay is not configured. Please configure PAWAPAY_API_TOKEN.",
-    },
-    {
-      status: 503,
-    },
-  )
-}
+    // Payments are always tied to an account so access can be granted.
+    const session = await getSession()
+    if (!session) return fail("Log in to complete your payment.", 401)
 
-// ========================================================
-// PARSE REQUEST BODY
-// ========================================================
+    // ========================================================
+    // SERVER-SIDE PRICE
+    // ========================================================
 
-let body: unknown
+    let amountUsd: number
+    let label: { fr: string; en: string }
+    let teacherId: string | undefined
 
-try {
-  body = await req.json()
-} catch {
-  return Response.json(
-    {
-      ok: false,
-      provider: "pawapay",
+    if (kind === "formation") {
+      const formation = targetSlug ? await getFormationBySlug(targetSlug) : null
+      if (!formation) return fail("Course not found.", 404)
+      amountUsd = formation.priceUsd
+      label = { fr: formation.title.fr, en: formation.title.en }
+      // Only teacher-created courses pay a teacher share; admin/AI courses are 100% platform revenue.
+      teacherId = courseEarner(formation)
+    } else if (kind === "subscription") {
+      amountUsd = 15
+      label = { fr: "Abonnement étudiant", en: "Student subscription" }
+    } else if (kind === "event") {
+      // Events are posted by admins; the price always comes from the database.
+      const event = targetSlug ? await getEvent(targetSlug) : null
+      if (!event?.published) return fail("Event not found.", 404)
+      amountUsd = event.priceUsd
+      label = { fr: `Billet — ${event.title.fr}`, en: `Ticket — ${event.title.en}` }
+    } else if (kind === "certificate") {
+      const [formation, attempt, existing] = await Promise.all([
+        targetSlug ? getFormationBySlug(targetSlug) : null,
+        targetSlug ? bestAttempt(session.userId, targetSlug) : null,
+        (await certificates()).findOne({ userId: session.userId, formationSlug: targetSlug }),
+      ])
+      if (!formation || !attempt?.passed || attempt.score < EXAM_PASS_SCORE) return fail(`Score at least ${EXAM_PASS_SCORE}% on the certification exam first.`, 403)
+      if (existing) return fail("Certificate already issued.", 409)
+      amountUsd = CERTIFICATE_PRICE_USD
+      label = {
+        fr: `Certification ${CERTIFIER_NAME} — ${formation.title.fr}`,
+        en: `${CERTIFIER_NAME} certification — ${formation.title.en}`,
+      }
+    } else if (kind === "ai_module") {
+      // Linko Academy is sold per course (all modules). A module slug buys its whole course.
+      const track = targetSlug ? ((await findAiTrack(targetSlug)) ?? (await findAiModule(targetSlug))?.track) : null
+      if (!track) return fail("Course not found.", 404)
+      targetSlug = track.slug
+      amountUsd = AI_COURSE_PRICE_USD
+      label = {
+        fr: `Linko Academy — cours ${track.name.fr} (${track.modules.length} modules)`,
+        en: `Linko Academy — ${track.name.en} course (${track.modules.length} modules)`,
+      }
+    } else {
+      return fail("Project payments require an approved quote with a valid amount.", 400)
+    }
 
-      error:
-        "Invalid JSON request body.",
-    },
-    {
-      status: 400,
-    },
-  )
-}
+    if (!Number.isFinite(amountUsd) || amountUsd <= 0) return fail("Invalid payment amount.", 400)
 
-// ========================================================
-// VALIDATE REQUEST
-// ========================================================
+    // ========================================================
+    // COUNTRY, METHOD AND CURRENCY
+    // ========================================================
 
-const parsed =
-  schema.safeParse(body)
+    if (!swychrCountries().includes(country)) return fail("Payments are not available in this country.", 400)
+    const methods = await paymentMethods(country)
+    const method = methods?.methods.find((m) => m.method === paymentMethod)
+    if (!methods || !method) return fail("This payment method is not available in your country.", 400)
+    const mobile = normalizeMobile(country, parsed.data.mobile, method.mobileLength)
+    if (!mobile) return fail(`Invalid mobile number. Expected format: ${method.mobileFormat}.`, 400)
+    if (requiresOrangeOtp(country, paymentMethod) && !omOtp) {
+      return fail("Enter the Orange Money code sent to your phone.", 400)
+    }
 
-if (!parsed.success) {
-  console.error(
-    "Invalid payment request:",
-    parsed.error.flatten(),
-  )
+    const { amount, rate } = await convertFromUsd(amountUsd, methods.currency)
+    // What the customer is actually prompted for on their phone.
+    const customerTotal = customerPaysDigitalCharge() ? Math.ceil(amount * (1 + SWYCHR_DIGITAL_CHARGE_RATE)) : amount
 
-  return Response.json(
-    {
-      ok: false,
-      provider: "pawapay",
+    // ========================================================
+    // CREATE PAYMENT
+    // ========================================================
 
-      error:
-        "Invalid payment request.",
+    const reference = randomUUID()
+    const { token, hash } = newCallbackToken()
+    const callback = (outcome: "success" | "failed") =>
+      `${appUrl}/api/payments/swychr/callback?ref=${reference}&token=${token}&outcome=${outcome}`
 
-      details:
-        parsed.error.flatten(),
-    },
-    {
-      status: 400,
-    },
-  )
-}
-
-const {
-  kind,
-  phone,
-  network,
-  country,
-} = parsed.data
-
-// ========================================================
-// NORMALIZE TARGET SLUG
-// ========================================================
-
-const targetSlug =
-  parsed.data.targetSlug?.trim() ||
-  undefined
-
-// ========================================================
-// VALIDATE DATABASE PAYMENT KIND
-//
-// This is intentionally explicit so that
-// TypeScript catches future inconsistencies.
-// ========================================================
-
-const paymentKind: PaymentKind =
-  kind
-
-// ========================================================
-// USER SESSION
-// ========================================================
-
-const session =
-  await getSession()
-
-// ========================================================
-// SERVER-SIDE PRICE CALCULATION
-//
-// SECURITY:
-//
-// The client NEVER sends a trusted amount.
-//
-// The price is determined exclusively here
-// using kind + targetSlug.
-// ========================================================
-
-let amountUsd = 0
-
-let label = {
-  fr: "Paiement",
-  en: "Payment",
-}
-
-// ========================================================
-// FORMATION PAYMENT
-// ========================================================
-
-if (kind === "formation") {
-  if (!targetSlug) {
-    return Response.json(
-      {
-        ok: false,
-        provider: "pawapay",
-
-        error:
-          "Missing course.",
-      },
-      {
-        status: 400,
-      },
-    )
-  }
-
-  const formation =
-    await getFormationBySlug(
-      targetSlug,
-    )
-
-  if (!formation) {
-    return Response.json(
-      {
-        ok: false,
-        provider: "pawapay",
-
-        error:
-          "Course not found.",
-      },
-      {
-        status: 404,
-      },
-    )
-  }
-
-  amountUsd =
-    formation.priceUsd
-
-  label = {
-    fr: formation.title.fr,
-    en: formation.title.en,
-  }
-}
-
-// ========================================================
-// SUBSCRIPTION PAYMENT
-// ========================================================
-
-else if (
-  kind === "subscription"
-) {
-  /**
-   * Server-controlled subscription price.
-   *
-   * Move this to your pricing configuration
-   * or database when subscriptions have
-   * multiple plans.
-   */
-  amountUsd = 15
-
-  label = {
-    fr: "Abonnement étudiant",
-    en: "Student subscription",
-  }
-}
-
-// ========================================================
-// EVENT PAYMENT
-// ========================================================
-
-else if (
-  kind === "event"
-) {
-  if (!targetSlug) {
-    return Response.json(
-      {
-        ok: false,
-        provider: "pawapay",
-
-        error:
-          "Missing event.",
-      },
-      {
-        status: 400,
-      },
-    )
-  }
-
-  // ======================================================
-  // FIND REGISTERED EVENT
-  // ======================================================
-
-  const event =
-    EVENTS[
-      targetSlug as keyof typeof EVENTS
-    ]
-
-  if (!event) {
-    return Response.json(
-      {
-        ok: false,
-        provider: "pawapay",
-
-        error:
-          "Event not found.",
-      },
-      {
-        status: 404,
-      },
-    )
-  }
-
-  // ======================================================
-  // TRUSTED EVENT PRICE
-  // ======================================================
-
-  amountUsd =
-    event.priceUsd
-
-  label =
-    event.label
-}
-
-// ========================================================
-// PROJECT PAYMENT
-// ========================================================
-
-else if (
-  kind === "project"
-) {
-  /**
-   * Project payments should never use
-   * arbitrary client-side prices.
-   *
-   * Implement this using an approved quote,
-   * invoice, or project payment record.
-   */
-  return Response.json(
-    {
-      ok: false,
-      provider: "pawapay",
-
-      error:
-        "Project payments require an approved quote with a valid amount.",
-    },
-    {
-      status: 400,
-    },
-  )
-}
-
-// ========================================================
-// UNSUPPORTED PAYMENT TYPE
-// ========================================================
-
-else {
-  return Response.json(
-    {
-      ok: false,
-      provider: "pawapay",
-
-      error:
-        "Unsupported payment type.",
-    },
-    {
-      status: 400,
-    },
-  )
-}
-
-// ========================================================
-// VALIDATE SERVER-CALCULATED AMOUNT
-// ========================================================
-
-if (
-  !Number.isFinite(
-    amountUsd,
-  ) ||
-  amountUsd <= 0
-) {
-  console.error(
-    "Invalid server-calculated payment amount:",
-    {
+    const now = new Date()
+    const doc: PaymentDoc = {
+      reference,
+      userId: session.userId,
+      provider: "swychr",
       kind,
       targetSlug,
-      amountUsd,
-    },
-  )
-
-  return Response.json(
-    {
-      ok: false,
-      provider: "pawapay",
-
-      error:
-        "Invalid payment amount.",
-    },
-    {
-      status: 400,
-    },
-  )
-}
-
-// ========================================================
-// CREATE UNIQUE PAYMENT REFERENCE
-// ========================================================
-
-const reference =
-  randomUUID()
-
-// ========================================================
-// INITIATE PAWAPAY PAYMENT
-// ========================================================
-
-const result =
-  await initiatePayment({
-    reference,
-
-    /**
-     * Trusted USD amount.
-     *
-     * The payment provider implementation
-     * converts this to the appropriate local
-     * currency when necessary.
-     */
-    amountUsd,
-
-    country,
-    phone,
-    network,
-  })
-
-// ========================================================
-// RESOLVE TRUSTED PAYMENT VALUES
-// ========================================================
-
-const paymentCurrency =
-  result.currency ?? "USD"
-
-const paymentCountry =
-  result.country ?? country
-
-const paymentAmount =
-  result.amount ?? amountUsd
-
-// ========================================================
-// SAVE PAYMENT
-//
-// Save both successful and unsuccessful
-// provider requests for transaction history,
-// reconciliation and debugging.
-// ========================================================
-
-if (isDbConfigured()) {
-  try {
-    const collection =
-      await payments()
-
-    await collection.insertOne({
-      reference,
-
-      userId:
-        session?.userId ??
-        undefined,
-
-      provider:
-        "pawapay",
-
-      /**
-       * Official payment type.
-       *
-       * "event" is used consistently across
-       * the frontend, API and database.
-       */
-      kind: paymentKind,
-
-      targetSlug,
-
       label,
-
-      /**
-       * Original server-calculated USD price.
-       */
       amountUsd,
+      amount,
+      currency: methods.currency,
+      country,
+      exchangeRate: rate,
+      phone: mobile,
+      network: paymentMethod,
+      teacherId,
+      teacherShareUsd: teacherId ? Math.round(amountUsd * teacherRevenueShare() * 100) / 100 : undefined,
+      callbackTokenHash: hash,
+      status: "pending",
+      createdAt: now,
+      updatedAt: now,
+    }
+    // Saved before calling Swychr so an early callback always finds it.
+    const col = await payments()
+    await col.insertOne(doc)
 
-      /**
-       * Final amount sent to PawaPay.
-       */
-      amount:
-        paymentAmount,
+    try {
+      const { providerRef } = await createPaymentRequest({
+        transactionId: reference,
+        countryCode: country,
+        amount,
+        name: session.name,
+        email: session.email,
+        mobile,
+        paymentMethod,
+        description: label.en,
+        omOtp,
+        callbackUrl: callback("success"),
+        failedCallbackUrl: callback("failed"),
+      })
+      await col.updateOne({ reference }, { $set: { providerRef, updatedAt: new Date() } })
+    } catch (error) {
+      await col.updateOne({ reference }, { $set: { status: "failed", updatedAt: new Date() } })
+      if (error instanceof SwychrError) return fail(error.message, 400)
+      throw error
+    }
 
-      currency:
-        paymentCurrency,
-
-      country:
-        paymentCountry,
-
-      exchangeRate:
-        result.exchangeRate ??
-        undefined,
-
-      phone,
-
-      network:
-        network ??
-        undefined,
-
-      status:
-        result.status,
-
-      providerRef:
-        result.providerRef ??
-        undefined,
-
-      createdAt:
-        new Date(),
-
-      updatedAt:
-        new Date(),
+    return Response.json({
+      ok: true,
+      provider: "swychr",
+      reference,
+      status: "pending",
+      amountUsd,
+      amount,
+      customerTotal,
+      currency: methods.currency,
+      country,
+      exchangeRate: rate,
     })
   } catch (error) {
-    /**
-     * The payment request has already been
-     * sent to the provider.
-     *
-     * Do not automatically fail the payment
-     * simply because logging failed.
-     */
-    console.error(
-      "Unable to save payment:",
-      error,
-    )
+    // Details (bad API key, missing FX rate…) go to the logs, not to customers.
+    console.error("Swychr payment route error:", error)
+    return fail("Payment service unavailable. Please try again later.", 500)
   }
-}
-
-// ========================================================
-// RETURN PAYMENT RESPONSE
-// ========================================================
-
-return Response.json(
-  {
-    ok: result.ok,
-
-    provider:
-      "pawapay",
-
-    reference,
-
-    status:
-      result.status,
-
-    providerRef:
-      result.providerRef,
-
-    /**
-     * Trusted server-calculated USD amount.
-     */
-    amountUsd,
-
-    /**
-     * Final provider payment amount.
-     */
-    amount:
-      paymentAmount,
-
-    currency:
-      paymentCurrency,
-
-    country:
-      paymentCountry,
-
-    exchangeRate:
-      result.exchangeRate,
-
-    error:
-      result.error,
-  },
-  {
-    status:
-      result.ok
-        ? 200
-        : 400,
-  },
-)
-
-
-} catch (error) {
-console.error(
-"PawaPay payment route error:",
-error,
-)
-
-
-return Response.json(
-  {
-    ok: false,
-    provider: "pawapay",
-
-    error:
-      error instanceof Error
-        ? error.message
-        : "Unable to initiate payment.",
-  },
-  {
-    status: 500,
-  },
-)
-
-
-}
 }
