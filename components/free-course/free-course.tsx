@@ -435,9 +435,15 @@ function TutorDrawer({ lesson, lang, code, onClose }: { lesson: Lesson; lang: "f
           <p className="text-destructive">
             {error.text}{" "}
             {error.login && (
-              <Link href="/login" className="font-medium underline">
-                {fr ? "Se connecter" : "Log in"}
-              </Link>
+              <>
+                <Link href="/register" className="font-medium underline">
+                  {fr ? "Créer un compte gratuit" : "Create a free account"}
+                </Link>
+                {" · "}
+                <Link href="/login" className="font-medium underline">
+                  {fr ? "Se connecter" : "Log in"}
+                </Link>
+              </>
             )}
           </p>
         )}
