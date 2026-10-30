@@ -27,6 +27,7 @@ function dashboardPath(role?: string) {
   if (role === 'client') return '/dashboard/client'
   if (role === 'teacher') return '/dashboard/teacher'
   if (role === 'admin' || role === 'super-admin') return '/dashboard/admin'
+  if (role === 'staff') return '/dashboard/staff'
   return '/dashboard/student'
 }
 

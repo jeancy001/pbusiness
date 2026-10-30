@@ -11,6 +11,8 @@ import {
   BookOpen,
   Bot,
   CalendarDays,
+  ShieldCheck,
+  UserCircle,
   Users,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
@@ -48,8 +50,10 @@ export const adminNav: NavItem[] = [
   { href: "/dashboard/admin/events", labelKey: "admin.events", icon: CalendarDays },
   { href: "/dashboard/admin/users", labelKey: "admin.users", icon: Users },
   { href: "/dashboard/admin/teachers", labelKey: "admin.teachers", icon: GraduationCap },
+  { href: "/dashboard/admin/team", labelKey: "admin.team", icon: ShieldCheck },
   { href: "/dashboard/admin/payments", labelKey: "admin.payments", icon: Wallet },
   { href: "/dashboard/admin#ai", labelKey: "admin.aiManagement", icon: Sparkles },
+  { href: "/dashboard/profile", labelKey: "nav.profile", icon: UserCircle },
 ]
 
 const statIcons: Record<string, LucideIcon> = {

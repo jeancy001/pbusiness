@@ -79,16 +79,16 @@ export function AdminEvents({ events }: { events: EventView[] }) {
           <form key={editing} action={save} className="grid gap-4 md:grid-cols-2">
             <div className="md:col-span-2">
               <Field label={fr ? "Titre" : "Title"} htmlFor="ev-title">
-                <Input id="ev-title" name="title" required minLength={4} maxLength={140} defaultValue={current ? localize(current.title, locale) : ""} />
+                <Input placeholder={fr ? "Ex. : Hackathon Linko 2026" : "e.g. Linko Hackathon 2026"} id="ev-title" name="title" required minLength={4} maxLength={140} defaultValue={current ? localize(current.title, locale) : ""} />
               </Field>
             </div>
             <div className="md:col-span-2">
               <Field label="Description" htmlFor="ev-desc">
-                <Textarea id="ev-desc" name="description" required minLength={10} maxLength={2000} className="min-h-24" defaultValue={current ? localize(current.description, locale) : ""} />
+                <Textarea placeholder={fr ? "Programme, public visé, ce que les participants vont vivre…" : "Programme, audience, what attendees will experience…"} id="ev-desc" name="description" required minLength={10} maxLength={2000} className="min-h-24" defaultValue={current ? localize(current.description, locale) : ""} />
               </Field>
             </div>
             <Field label={fr ? "Lieu" : "Location"} htmlFor="ev-loc">
-              <Input id="ev-loc" name="location" required maxLength={140} defaultValue={current?.location} />
+              <Input placeholder={fr ? "Ex. : Kinshasa — Gombe, ou En ligne" : "e.g. Kinshasa — Gombe, or Online"} id="ev-loc" name="location" required maxLength={140} defaultValue={current?.location} />
             </Field>
             <Field label={fr ? "Public" : "Audience"} htmlFor="ev-aud">
               <Input id="ev-aud" name="audience" maxLength={140} defaultValue={current?.audience} placeholder={fr ? "ex. Étudiants en informatique" : "e.g. Computer science students"} />
@@ -97,10 +97,10 @@ export function AdminEvents({ events }: { events: EventView[] }) {
               <Input id="ev-date" name="startAt" type="datetime-local" defaultValue={toLocalInput(current?.startAt)} />
             </Field>
             <Field label={fr ? "Durée" : "Duration"} htmlFor="ev-dur">
-              <Input id="ev-dur" name="duration" required maxLength={60} defaultValue={current?.duration ?? (fr ? "1 journée" : "1 day")} />
+              <Input placeholder={fr ? "Ex. : 1 journée" : "e.g. 1 day"} id="ev-dur" name="duration" required maxLength={60} defaultValue={current?.duration ?? (fr ? "1 journée" : "1 day")} />
             </Field>
             <Field label={fr ? "Prix du billet (USD, 0 = gratuit)" : "Ticket price (USD, 0 = free)"} htmlFor="ev-price">
-              <Input id="ev-price" name="priceUsd" type="number" min={0} step="0.01" required defaultValue={current?.priceUsd ?? 15} />
+              <Input placeholder={fr ? "0 = gratuit" : "0 = free"} id="ev-price" name="priceUsd" type="number" min={0} step="0.01" required defaultValue={current?.priceUsd ?? 15} />
             </Field>
             <label className="flex items-center gap-2 self-end pb-2 text-sm">
               <input type="checkbox" name="published" defaultChecked={current?.published ?? true} className="accent-[#064E3B]" />

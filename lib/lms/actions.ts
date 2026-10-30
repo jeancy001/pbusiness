@@ -20,7 +20,7 @@ import { isAiConfigured } from "@/lib/ai/config"
 import { notifyCertificate, notifyLiveRequest } from "@/lib/email/notify"
 import { courseAccess, getOrCreateExam, recomputeProgress, sessionWithRole } from "@/lib/lms/queries"
 import { getSession } from "@/lib/auth/session"
-import { getFormationBySlug } from "@/lib/data/catalog"
+import { getFormationBySlug, isOnSale } from "@/lib/data/catalog"
 import { notifyAccountCreated, notifyCourseAssigned, notifyLessonPublished, notifyLiveScheduled } from "@/lib/email/notify"
 
 export type ActionResult<T = undefined> = { ok: true; data?: T } | { ok: false; error: string }
@@ -50,8 +50,9 @@ const teacherSchema = z.object({
   expertise: z.string().trim().max(120).optional(),
 })
 
+/** Main admins and assistant admins (staff) can add teachers. */
 export async function createTeacherAction(input: unknown): Promise<ActionResult> {
-  const admin = await sessionWithRole("admin")
+  const admin = await sessionWithRole("admin", "staff")
   if (!admin) return fail("Forbidden")
   const parsed = teacherSchema.safeParse(input)
   if (!parsed.success) return fail(firstIssue(parsed.error))
@@ -71,6 +72,7 @@ export async function createTeacherAction(input: unknown): Promise<ActionResult>
   })
   notifyAccountCreated({ name, email: email.toLowerCase(), role: "teacher" }, password)
   revalidatePath("/dashboard/admin/teachers")
+  revalidatePath("/dashboard/staff")
   return { ok: true }
 }
 
@@ -81,6 +83,7 @@ export async function assignCourseAction(input: { slug: string; teacherId: strin
   if (input.teacherId) {
     const teacher = await (await users()).findOne(byUserId(input.teacherId))
     if (!teacher || teacher.role !== "teacher") return fail("Teacher not found")
+    if (teacher.suspended) return fail("Ce formateur est suspendu. / This teacher is suspended.")
     teacherName = teacher.name
   }
 
@@ -94,8 +97,8 @@ export async function assignCourseAction(input: { slug: string; teacherId: strin
   await col.updateOne(
     { slug: input.slug },
     input.teacherId
-      ? { $set: { teacherId: input.teacherId, teacherName } }
-      : { $unset: { teacherId: "", teacherName: "" } },
+      ? { $set: { teacherId: input.teacherId, teacherName }, $unset: { teacherSuspended: "" } as never }
+      : { $unset: { teacherId: "", teacherName: "", teacherSuspended: "" } as never },
   )
   if (input.teacherId) notifyCourseAssigned(input.teacherId, input.slug)
   revalidatePath("/dashboard/admin/teachers")
@@ -227,7 +230,7 @@ export async function enrollFreeCourseAction(slug: string): Promise<ActionResult
   const session = await getSession()
   if (!session) return fail("Log in to add this course.")
   const course = await getFormationBySlug(slug)
-  if (!course || (course as { hidden?: boolean }).hidden) return fail("Course not found")
+  if (!course || !isOnSale(course)) return fail("Course not found")
   if (course.priceUsd > 0) return fail("This course is paid.")
   await (await enrollments()).updateOne(
     { userId: session.userId, formationSlug: slug },

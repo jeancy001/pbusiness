@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { selectClass } from "@/components/lms/ui"
 import { normalizeMobile } from "@/lib/payments/mobile"
 
-export type PaymentKind = "formation" | "subscription" | "project" | "ticket" | "event" | "certificate" | "ai_module"
+export type PaymentKind = "formation" | "subscription" | "project" | "ticket" | "event" | "certificate" | "ai_module" | "teacher_badge"
 
 type Phase = "form" | "processing" | "success" | "failed" | "pending"
 
@@ -307,7 +307,7 @@ export function CheckoutDialog({ kind, targetSlug, amountUsd, trigger, onSuccess
                 {needsOtp && (
                   <div className="grid gap-2">
                     <Label htmlFor="pay-otp">{fr ? "Code Orange Money" : "Orange Money code"}</Label>
-                    <Input id="pay-otp" required inputMode="numeric" value={otp} onChange={(e) => setOtp(e.target.value)} />
+                    <Input placeholder={fr ? "Ex. : 123456" : "e.g. 123456"} id="pay-otp" required inputMode="numeric" value={otp} onChange={(e) => setOtp(e.target.value)} />
                     <p className="text-xs text-muted-foreground">
                       {fr
                         ? "Générez le code de paiement depuis votre compte Orange Money, puis saisissez-le ici."

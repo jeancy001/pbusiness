@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useState } from "react"
 import { loginAction, registerAction, logoutAction, type AuthResult } from "@/lib/auth/actions"
 
-export type UserRole = "student" | "client" | "teacher" | "admin"
+export type UserRole = "student" | "client" | "teacher" | "admin" | "staff"
 
 export type SessionUser = {
   id: string
@@ -16,7 +16,7 @@ type AuthContextValue = {
   user: SessionUser | null
   isAuthenticated: boolean
   login: (email: string, password: string) => Promise<AuthResult>
-  register: (name: string, email: string, password: string, role: UserRole, locale?: string) => Promise<AuthResult>
+  register: (name: string, email: string, password: string, locale?: string) => Promise<AuthResult>
   logout: () => Promise<void>
 }
 
@@ -41,8 +41,8 @@ export function AuthProvider({
   }, [])
 
   const register = useCallback(
-    async (name: string, email: string, password: string, role: UserRole, locale?: string): Promise<AuthResult> => {
-      const res = await registerAction({ name, email, password, role, locale })
+    async (name: string, email: string, password: string, locale?: string): Promise<AuthResult> => {
+      const res = await registerAction({ name, email, password, locale })
       if (res.ok) setUser({ id: "session", name, email, role: res.role as UserRole })
       return res
     },

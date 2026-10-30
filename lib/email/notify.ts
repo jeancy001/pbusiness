@@ -71,15 +71,15 @@ export function notifyWelcome(user: Recipient & { role: string }) {
 }
 
 /** Account created by an admin, with the temporary password to sign in. */
-export function notifyAccountCreated(user: Recipient & { role: "teacher" | "student" }, tempPassword: string) {
+export function notifyAccountCreated(user: Recipient & { role: "teacher" | "student" | "staff" }, tempPassword: string) {
   later(() =>
     deliver(user, (l) => ({
       subject: fr(l) ? "Votre compte Linko Academy a été créé" : "Your Linko Academy account has been created",
       heading: fr(l) ? `Bonjour ${user.name},` : `Hello ${user.name},`,
       paragraphs: [
         fr(l)
-          ? `Un administrateur vous a créé un compte ${user.role === "teacher" ? "formateur" : "étudiant"}. Connectez-vous avec les identifiants ci-dessous, puis changez votre mot de passe.`
-          : `An administrator created a ${user.role} account for you. Sign in with the details below, then change your password.`,
+          ? `Un administrateur vous a créé un compte ${{ teacher: "formateur", student: "étudiant", staff: "administrateur adjoint" }[user.role]}. Connectez-vous avec les identifiants ci-dessous, puis changez votre mot de passe.`
+          : `An administrator created ${user.role === "staff" ? "an assistant admin" : `a ${user.role}`} account for you. Sign in with the details below, then change your password.`,
       ],
       details: [
         ["E-mail", user.email],
@@ -88,6 +88,48 @@ export function notifyAccountCreated(user: Recipient & { role: "teacher" | "stud
       cta: { label: fr(l) ? "Se connecter" : "Sign in", href: appUrl("/login") },
     })),
   )
+}
+
+/** Tells the main admins a certified student applied to teach. */
+export function notifyTeacherApplication(studentName: string) {
+  later(async () => {
+    for (const admin of await admins()) {
+      await deliver(admin, (l) => ({
+        subject: fr(l) ? "Nouvelle candidature de formateur" : "New teacher application",
+        heading: fr(l) ? "Une candidature attend votre décision" : "An application is waiting for you",
+        paragraphs: [
+          fr(l)
+            ? `${studentName}, étudiant certifié, demande à devenir formateur.`
+            : `${studentName}, a certified student, applied to become a teacher.`,
+        ],
+        cta: { label: fr(l) ? "Examiner la candidature" : "Review the application", href: appUrl("/dashboard/admin/team") },
+      }))
+    }
+  })
+}
+
+export function notifyTeacherApplicationResult(userId: string, approved: boolean, note?: string) {
+  later(async () => {
+    const user = await userById(userId)
+    if (!user) return
+    await deliver(user, (l) => ({
+      subject: approved
+        ? fr(l) ? "Vous êtes maintenant formateur !" : "You are now a teacher!"
+        : fr(l) ? "Votre candidature de formateur" : "Your teacher application",
+      heading: fr(l) ? `Bonjour ${user.name},` : `Hello ${user.name},`,
+      paragraphs: [
+        approved
+          ? fr(l)
+            ? "Votre candidature a été acceptée. Votre espace formateur est prêt : créez vos cours et enseignez en direct."
+            : "Your application was accepted. Your teacher space is ready: create your courses and teach live."
+          : fr(l)
+            ? "Votre candidature n'a pas été retenue pour le moment. Vous pourrez postuler à nouveau plus tard."
+            : "Your application wasn't accepted this time. You can apply again later.",
+        ...(note ? [note] : []),
+      ],
+      cta: approved ? { label: fr(l) ? "Ouvrir mon espace formateur" : "Open my teacher space", href: appUrl("/dashboard/teacher") } : undefined,
+    }))
+  })
 }
 
 // ============================================================

@@ -373,7 +373,7 @@ async function studentsFor(slugs: string[]): Promise<StudentProgressView[]> {
 export async function getTeacherDashboard(teacherId: string): Promise<TeacherView> {
   if (!isDbConfigured()) return { courses: [], students: [], live: [] }
   const owned = (await (await formationsCol())
-    .find({ teacherId }, { projection: { _id: 0 } })
+    .find({ teacherId, deleted: { $ne: true } } as never, { projection: { _id: 0 } })
     .toArray()) as Formation[]
   const slugs = owned.map((f) => f.slug)
   const [students, counts, sessions] = await Promise.all([
@@ -455,7 +455,7 @@ export async function getAdminTeachers(): Promise<{ teachers: TeacherSummary[]; 
   if (!isDbConfigured()) return { teachers: [], formations: [] }
   const [teacherDocs, formationDocs] = await Promise.all([
     (await users()).find({ role: "teacher" }, { projection: { passwordHash: 0 } }).sort({ createdAt: -1 }).toArray(),
-    (await formationsCol()).find({}, { projection: { _id: 0 } }).toArray() as Promise<Formation[]>,
+    (await formationsCol()).find({ deleted: { $ne: true } } as never, { projection: { _id: 0 } }).toArray() as Promise<Formation[]>,
   ])
   const counts = await (await enrollments())
     .aggregate<{ _id: string; n: number }>([{ $group: { _id: "$formationSlug", n: { $sum: 1 } } }])

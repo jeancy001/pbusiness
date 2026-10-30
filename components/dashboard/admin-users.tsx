@@ -2,21 +2,23 @@
 
 import { useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { GraduationCap, Search, ShieldCheck, UserPlus, Users } from "lucide-react"
+import { GraduationCap, Search, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react"
 
 import { useI18n } from "@/lib/i18n/context"
 import { localize, type Formation } from "@/lib/mock-data"
 import type { AdminUserView } from "@/lib/lms/admin"
 import { createStudentAction } from "@/lib/lms/actions"
+import { deleteUserAction } from "@/lib/admin/actions"
 import { DashboardShell, StatCard } from "@/components/dashboard/dashboard-shell"
 import { adminNav } from "@/components/dashboard/admin-dashboard"
 import { EmptyState, Field, FormError, Panel, formatDate, selectClass } from "@/components/lms/ui"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { cn } from "@/lib/utils"
 
-const ROLES = ["all", "student", "teacher", "client", "admin"] as const
+const ROLES = ["all", "student", "teacher", "client", "admin", "staff"] as const
 
 export function AdminUsers({ users, courses }: { users: AdminUserView[]; courses: Formation[] }) {
   const { t, locale } = useI18n()
@@ -34,7 +36,8 @@ export function AdminUsers({ users, courses }: { users: AdminUserView[]; courses
       student: fr ? "Étudiants" : "Students",
       teacher: fr ? "Formateurs" : "Teachers",
       client: "Clients",
-      admin: fr ? "Admins" : "Admins",
+      admin: fr ? "Admin principal" : "Main admin",
+      staff: fr ? "Admins adjoints" : "Assistant admins",
     })[r] ?? r
 
   const count = (r: string) => users.filter((u) => u.role === r).length
@@ -42,6 +45,16 @@ export function AdminUsers({ users, courses }: { users: AdminUserView[]; courses
     const q = query.trim().toLowerCase()
     return users.filter((u) => (role === "all" || u.role === role) && (!q || `${u.name} ${u.email}`.toLowerCase().includes(q)))
   }, [users, role, query])
+
+  function remove(id: string, name: string) {
+    if (!window.confirm(fr ? `Supprimer définitivement le compte de ${name} ? Ses inscriptions et sa progression seront effacées.` : `Permanently delete ${name}'s account? Their enrollments and progress will be erased.`)) return
+    setError(null)
+    start(async () => {
+      const res = await deleteUserAction(id)
+      if (!res.ok) setError(res.error)
+      router.refresh()
+    })
+  }
 
   function create(form: FormData) {
     setError(null)
@@ -61,7 +74,7 @@ export function AdminUsers({ users, courses }: { users: AdminUserView[]; courses
         <StatCard label={roleLabel("student")} value={String(count("student"))} icon={GraduationCap} />
         <StatCard label={roleLabel("teacher")} value={String(count("teacher"))} icon={Users} />
         <StatCard label="Clients" value={String(count("client"))} icon={Users} />
-        <StatCard label={roleLabel("admin")} value={String(count("admin"))} icon={ShieldCheck} />
+        <StatCard label={fr ? "Admins" : "Admins"} value={String(count("admin") + count("staff"))} icon={ShieldCheck} />
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -98,7 +111,8 @@ export function AdminUsers({ users, courses }: { users: AdminUserView[]; courses
                     <th className="px-5 py-2 font-medium">{fr ? "Nom" : "Name"}</th>
                     <th className="px-3 py-2 font-medium">{fr ? "Rôle" : "Role"}</th>
                     <th className="px-3 py-2 text-right font-medium">{t("nav.formations")}</th>
-                    <th className="px-5 py-2 text-right font-medium">{fr ? "Inscrit le" : "Joined"}</th>
+                    <th className="px-3 py-2 text-right font-medium">{fr ? "Inscrit le" : "Joined"}</th>
+                    <th className="w-12 px-5 py-2" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -109,10 +123,24 @@ export function AdminUsers({ users, courses }: { users: AdminUserView[]; courses
                         <p className="text-xs text-muted-foreground">{u.email}</p>
                       </td>
                       <td className="px-3 py-3">
-                        <Badge variant={u.role === "admin" ? "warning" : u.role === "teacher" ? "default" : "secondary"}>{roleLabel(u.role)}</Badge>
+                        <Badge variant={u.role === "admin" || u.role === "staff" ? "warning" : u.role === "teacher" ? "default" : "secondary"}>{roleLabel(u.role)}</Badge>
                       </td>
                       <td className="px-3 py-3 text-right tabular-nums">{u.enrollments}</td>
-                      <td className="px-5 py-3 text-right text-muted-foreground">{formatDate(u.createdAt, locale)}</td>
+                      <td className="px-3 py-3 text-right text-muted-foreground">{formatDate(u.createdAt, locale)}</td>
+                      <td className="px-5 py-3 text-right">
+                        {(u.role === "student" || u.role === "client") && (
+                          <button
+                            type="button"
+                            disabled={pending}
+                            onClick={() => remove(u.id, u.name)}
+                            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                            aria-label={fr ? `Supprimer ${u.name}` : `Delete ${u.name}`}
+                            title={fr ? "Supprimer" : "Delete"}
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -124,17 +152,17 @@ export function AdminUsers({ users, courses }: { users: AdminUserView[]; courses
         <Panel title={fr ? "Ajouter un étudiant" : "Add a student"} icon={UserPlus} className="self-start">
           <form action={create} className="space-y-4">
             <Field label={fr ? "Nom complet" : "Full name"} htmlFor="s-name">
-              <Input id="s-name" name="name" required minLength={2} />
+              <Input placeholder={fr ? "Ex. : Grâce Mbuyi" : "e.g. Grace Mbuyi"} id="s-name" name="name" required minLength={2} />
             </Field>
             <Field label="Email" htmlFor="s-email">
-              <Input id="s-email" name="email" type="email" required />
+              <Input placeholder={fr ? "etudiant@exemple.com" : "student@example.com"} id="s-email" name="email" type="email" required />
             </Field>
             <Field
               label={fr ? "Mot de passe temporaire" : "Temporary password"}
               htmlFor="s-pass"
               hint={fr ? "Envoyé par e-mail à l'étudiant." : "Emailed to the student."}
             >
-              <Input id="s-pass" name="password" type="text" required minLength={8} autoComplete="off" />
+              <PasswordInput placeholder={fr ? "8 caractères minimum" : "At least 8 characters"} id="s-pass" name="password" required minLength={8} autoComplete="off" />
             </Field>
             <Field label={fr ? "Inscrire au cours (facultatif)" : "Enroll in a course (optional)"} htmlFor="s-course">
               <select id="s-course" name="courseSlug" className={selectClass} defaultValue="">

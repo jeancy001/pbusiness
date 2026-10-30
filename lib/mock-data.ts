@@ -55,6 +55,8 @@ export type Formation = {
   image: string
   teacherId?: string
   teacherName?: string
+  /** The teacher holds an active Certified Teacher badge (blue check). */
+  teacherCertified?: boolean
   /**
    * Who earns from sales: "platform" (created by the admin or AI — 100% to the
    * admin) or "teacher" (created by its teacher — 90% teacher, 10% admin).

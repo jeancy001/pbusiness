@@ -239,7 +239,7 @@ function AddLessonForm({ slug, initialType = "video" }: { slug: string; initialT
 
       <form ref={formRef} action={submit} className="mt-5 space-y-4">
         <Field label={type === "live" ? (locale === "fr" ? "Sujet" : "Topic") : t("lms.title")} htmlFor="l-title">
-          <Input id="l-title" name="title" required minLength={2} />
+          <Input placeholder={locale === "fr" ? "Ex. : Introduction aux variables" : "e.g. Introduction to variables"} id="l-title" name="title" required minLength={2} />
         </Field>
 
         {type === "video" && (
@@ -260,7 +260,7 @@ function AddLessonForm({ slug, initialType = "video" }: { slug: string; initialT
 
         {type === "text" && (
           <Field label={t("lms.content")} htmlFor="l-body" hint="Markdown">
-            <Textarea id="l-body" name="body" required className="min-h-48 font-mono text-[13px]" />
+            <Textarea placeholder={locale === "fr" ? "Contenu de la leçon (Markdown accepté)…" : "Lesson content (Markdown supported)…"} id="l-body" name="body" required className="min-h-48 font-mono text-[13px]" />
           </Field>
         )}
 
@@ -278,7 +278,7 @@ function AddLessonForm({ slug, initialType = "video" }: { slug: string; initialT
         )}
 
         <Field label={t("lms.duration")} htmlFor="l-duration">
-          <Input
+          <Input placeholder={locale === "fr" ? "Ex. : 60" : "e.g. 60"}
             id="l-duration"
             name="durationMin"
             type="number"
@@ -409,7 +409,7 @@ function ExamTab({ slug, exam }: { slug: string; exam: TeacherCourseView["exam"]
           <label htmlFor="pass" className="text-muted-foreground">
             {t("lms.passMark")}
           </label>
-          <Input id="pass" type="number" min={EXAM_PASS_SCORE} max={100} value={passScore} onChange={(e) => setPassScore(Number(e.target.value))} className="h-8 w-20" />
+          <Input placeholder="70" id="pass" type="number" min={EXAM_PASS_SCORE} max={100} value={passScore} onChange={(e) => setPassScore(Number(e.target.value))} className="h-8 w-20" />
           <span>%</span>
         </div>
       }
@@ -521,17 +521,17 @@ function SettingsTab({ formation: f }: { formation: Formation }) {
         <div className="grid gap-4 md:grid-cols-2">
           <div className="md:col-span-2">
             <Field label={t("lms.title")} htmlFor="cs-title">
-              <Input id="cs-title" name="title" required minLength={4} defaultValue={source(f.title)} />
+              <Input placeholder={fr ? "Ex. : Python pour débutants" : "e.g. Python for beginners"} id="cs-title" name="title" required minLength={4} defaultValue={source(f.title)} />
             </Field>
           </div>
           <div className="md:col-span-2">
             <Field label={fr ? "Résumé" : "Summary"} htmlFor="cs-summary">
-              <Textarea id="cs-summary" name="summary" required minLength={10} defaultValue={source(f.summary)} className="min-h-16" />
+              <Textarea placeholder={fr ? "Une phrase qui résume le cours" : "One sentence that sums up the course"} id="cs-summary" name="summary" required minLength={10} defaultValue={source(f.summary)} className="min-h-16" />
             </Field>
           </div>
           <div className="md:col-span-2">
             <Field label="Description" htmlFor="cs-desc">
-              <Textarea id="cs-desc" name="description" defaultValue={source(f.description)} className="min-h-28" />
+              <Textarea placeholder={fr ? "Ce que l’étudiant va apprendre, pour qui, prérequis…" : "What students will learn, who it is for, prerequisites…"} id="cs-desc" name="description" defaultValue={source(f.description)} className="min-h-28" />
             </Field>
           </div>
           <Field label={t("common.category")} htmlFor="cs-cat">
@@ -553,7 +553,7 @@ function SettingsTab({ formation: f }: { formation: Formation }) {
             </select>
           </Field>
           <Field label={`${t("common.price")} (USD)`} htmlFor="cs-price">
-            <Input id="cs-price" name="priceUsd" type="number" min={0} step="0.01" required defaultValue={f.priceUsd} />
+            <Input placeholder={fr ? "Ex. : 20" : "e.g. 20"} id="cs-price" name="priceUsd" type="number" min={0} step="0.01" required defaultValue={f.priceUsd} />
           </Field>
           <div className="flex items-end justify-end gap-3">
             {saved && (

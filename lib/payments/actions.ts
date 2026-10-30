@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
+import { isPlatformOwner } from "@/lib/auth/owner"
 
 import { payouts, toObjectId } from "@/lib/db/lms"
 import { sessionWithRole } from "@/lib/lms/queries"
@@ -140,6 +141,7 @@ export async function reviewPayoutAction(input: { id: string; decision: "send" |
 export async function withdrawPlatformRevenueAction(input: unknown): Promise<Result> {
   const admin = await sessionWithRole("admin")
   if (!admin) return fail("Forbidden")
+  if (!isPlatformOwner(admin)) return fail("Seul le compte propriétaire de la plateforme peut retirer ces revenus. / Only the platform owner account can withdraw this revenue.")
   const parsed = requestSchema.extend({ amountUsd: z.coerce.number().min(1, "Minimum withdrawal is $1") }).safeParse(input)
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Invalid request")
 

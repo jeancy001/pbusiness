@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Plus,
   Receipt,
+  UserCircle,
   Wrench,
 } from "lucide-react"
 import { useI18n } from "@/lib/i18n/context"
@@ -25,7 +26,7 @@ import {
 } from "@/lib/mock-data"
 import type { PaymentView } from "@/lib/data/dashboard"
 
-const nav: NavItem[] = [
+export const clientNav: NavItem[] = [
   {
     href: "/dashboard/client",
     labelKey: "dash.overview",
@@ -51,6 +52,7 @@ const nav: NavItem[] = [
     labelKey: "client.maintenance",
     icon: Wrench,
   },
+  { href: "/dashboard/profile", labelKey: "nav.profile", icon: UserCircle },
 ]
 
 const statusVariant: Record<
@@ -85,7 +87,7 @@ export function ClientDashboard({
   ).length
 
   return (
-    <DashboardShell nav={nav} titleKey="client.title">
+    <DashboardShell nav={clientNav} titleKey="client.title">
       {/* New Quote */}
       <div className="mb-6 flex items-center justify-end">
         <Button

@@ -351,7 +351,9 @@ function TutorDrawer({ lesson, lang, code, onClose }: { lesson: Lesson; lang: "f
   const [error, setError] = useState<{ text: string; login?: boolean } | null>(null)
   const endRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => endRef.current?.scrollIntoView({ block: "end" }), [messages])
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ block: "end" })
+  }, [messages])
 
   async function ask(text: string) {
     if (!text.trim() || busy) return
@@ -397,7 +399,8 @@ function TutorDrawer({ lesson, lang, code, onClose }: { lesson: Lesson; lang: "f
     <aside
       role="dialog"
       aria-label={fr ? "Tuteur" : "Tutor"}
-      className="fixed inset-x-2 bottom-2 z-50 flex max-h-[75dvh] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl sm:inset-x-auto sm:right-4 sm:w-[420px]"
+      // Sits above the site assistant's floating button (bottom-right), which used to cover the send button.
+      className="fixed inset-x-2 bottom-24 z-[60] flex max-h-[calc(100dvh-8rem)] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl sm:inset-x-auto sm:right-5 sm:w-[420px]"
     >
       <header className="flex items-center gap-3 border-b border-border bg-[#064E3B] px-4 py-3 text-white">
         <MessageCircleQuestion className="size-5 text-emerald-300" />
@@ -411,9 +414,24 @@ function TutorDrawer({ lesson, lang, code, onClose }: { lesson: Lesson; lang: "f
       </header>
       <div className="min-h-40 flex-1 space-y-4 overflow-y-auto p-4 text-sm">
         {messages.length === 0 && (
-          <p className="text-muted-foreground">
-            {fr ? "Posez une question sur cette leçon. Le Tuteur voit aussi le code de votre éditeur." : "Ask anything about this lesson. The Tutor also sees the code in your editor."}
-          </p>
+          <div>
+            <p className="text-muted-foreground">
+              {fr ? "Posez une question sur cette leçon, ou choisissez une suggestion. Le Tuteur voit aussi le code de votre éditeur." : "Ask anything about this lesson, or pick a suggestion. The Tutor also sees the code in your editor."}
+            </p>
+            <div className="mt-3 grid gap-2">
+              {quick.map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => ask(q)}
+                  className="rounded-xl border border-[#064E3B]/20 bg-[#064E3B]/5 px-3 py-2 text-left text-sm font-medium text-[#064E3B] transition-colors hover:bg-[#064E3B]/10 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
         {messages.map((m, i) =>
           m.role === "user" ? (
@@ -450,7 +468,7 @@ function TutorDrawer({ lesson, lang, code, onClose }: { lesson: Lesson; lang: "f
         <div ref={endRef} />
       </div>
       <div className="border-t border-border p-3">
-        <div className="mb-2 flex gap-1.5 overflow-x-auto">
+        <div className={cn("mb-2 flex gap-1.5 overflow-x-auto", messages.length === 0 && "hidden")}>
           {quick.map((q) => (
             <button key={q} type="button" disabled={busy} onClick={() => ask(q)} className="shrink-0 rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50">
               {q}

@@ -83,7 +83,7 @@ export function AiVideoButton({ moduleSlug, defaultTopic, disabled }: { moduleSl
             }}
             className="grid gap-3"
           >
-            <Input value={topic} onChange={(e) => setTopic(e.target.value)} maxLength={200} aria-label={fr ? "Sujet" : "Topic"} />
+            <Input value={topic} onChange={(e) => setTopic(e.target.value)} maxLength={200} aria-label={fr ? "Sujet" : "Topic"} placeholder={fr ? "Ex. : les boucles en Python" : "e.g. loops in Python"} />
             <FormError message={error} />
             <Button type="submit" disabled={loading}>
               {loading ? <Loader2 className="size-4 animate-spin" /> : <Clapperboard className="size-4" />}

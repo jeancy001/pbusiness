@@ -3,12 +3,13 @@
 import { useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { BookOpen, Eye, EyeOff, Languages, Plus, Settings2, X } from "lucide-react"
+import { BookOpen, Eye, EyeOff, Languages, Plus, Settings2, Trash2, X } from "lucide-react"
 
 import { useI18n } from "@/lib/i18n/context"
 import { categoryLabels, localize, type FormationCategory, type Level } from "@/lib/mock-data"
 import type { AdminCourseView } from "@/lib/lms/admin"
 import { createCourseAction, setCourseRevenueOwnerAction, setCourseVisibilityAction, translateAllCoursesAction } from "@/lib/lms/actions"
+import { deleteCourseAction } from "@/lib/admin/actions"
 import { PLATFORM_COMMISSION_PERCENT, TEACHER_SHARE_PERCENT } from "@/lib/payments/fees"
 import { DashboardShell } from "@/components/dashboard/dashboard-shell"
 import { adminNav } from "@/components/dashboard/admin-dashboard"
@@ -83,17 +84,17 @@ export function AdminCourses({ courses, teachers }: { courses: AdminCourseView[]
             <div className="grid gap-4 md:grid-cols-2">
               <div className="md:col-span-2">
                 <Field label={t("lms.title")} htmlFor="ac-title">
-                  <Input id="ac-title" name="title" required minLength={4} />
+                  <Input placeholder={fr ? "Ex. : Python pour débutants" : "e.g. Python for beginners"} id="ac-title" name="title" required minLength={4} />
                 </Field>
               </div>
               <div className="md:col-span-2">
                 <Field label={fr ? "Résumé" : "Summary"} htmlFor="ac-summary">
-                  <Textarea id="ac-summary" name="summary" required minLength={10} className="min-h-16" />
+                  <Textarea placeholder={fr ? "Une phrase qui donne envie de suivre le cours" : "One sentence that makes people want to take the course"} id="ac-summary" name="summary" required minLength={10} className="min-h-16" />
                 </Field>
               </div>
               <div className="md:col-span-2">
                 <Field label="Description" htmlFor="ac-desc">
-                  <Textarea id="ac-desc" name="description" className="min-h-24" />
+                  <Textarea placeholder={fr ? "Ce que l’étudiant va apprendre, pour qui, prérequis…" : "What students will learn, who it is for, prerequisites…"} id="ac-desc" name="description" className="min-h-24" />
                 </Field>
               </div>
               <Field label={t("common.category")} htmlFor="ac-cat">
@@ -115,7 +116,7 @@ export function AdminCourses({ courses, teachers }: { courses: AdminCourseView[]
                 </select>
               </Field>
               <Field label={`${t("common.price")} (USD)`} htmlFor="ac-price">
-                <Input id="ac-price" name="priceUsd" type="number" min={0} step="0.01" defaultValue={19} required />
+                <Input placeholder={fr ? "Ex. : 20" : "e.g. 20"} id="ac-price" name="priceUsd" type="number" min={0} step="0.01" defaultValue={19} required />
               </Field>
               <Field label={fr ? "Formateur" : "Teacher"} htmlFor="ac-teacher">
                 <select id="ac-teacher" name="teacherId" className={selectClass} defaultValue="">
@@ -145,12 +146,18 @@ export function AdminCourses({ courses, teachers }: { courses: AdminCourseView[]
       ) : (
         <ul className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {courses.map((c) => (
-            <li key={c.slug} className={cn("flex flex-col overflow-hidden rounded-2xl border border-border bg-card", c.hidden && "opacity-60")}>
+            <li key={c.slug} className={cn("flex flex-col overflow-hidden rounded-2xl border border-border bg-card", (c.hidden || c.teacherSuspended) && "opacity-60")}>
               <div className="relative aspect-[16/9] bg-muted">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={c.image} alt="" className="size-full object-cover" />
                 <div className="absolute left-3 top-3 flex gap-1.5">
-                  {c.hidden ? <Badge variant="secondary">{fr ? "Masqué" : "Hidden"}</Badge> : <Badge variant="success">{fr ? "Publié" : "Published"}</Badge>}
+                  {c.teacherSuspended ? (
+                    <Badge variant="destructive">{fr ? "Formateur suspendu" : "Teacher suspended"}</Badge>
+                  ) : c.hidden ? (
+                    <Badge variant="secondary">{fr ? "Masqué" : "Hidden"}</Badge>
+                  ) : (
+                    <Badge variant="success">{fr ? "Publié" : "Published"}</Badge>
+                  )}
                   {c.title.tw && <Badge className="bg-white/90 text-[#064E3B]">5 {fr ? "langues" : "languages"}</Badge>}
                 </div>
               </div>
@@ -217,6 +224,28 @@ export function AdminCourses({ courses, teachers }: { courses: AdminCourseView[]
                     }
                   >
                     {c.hidden ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={pending}
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    aria-label={fr ? "Supprimer le cours" : "Delete course"}
+                    title={fr ? "Supprimer le cours" : "Delete course"}
+                    onClick={() => {
+                      const title = localize(c.title, locale)
+                      const warn = fr
+                        ? `Supprimer définitivement « ${title} » ? Ses leçons, fichiers et ${c.studentCount} inscription(s) seront effacés. Les paiements passés sont conservés.`
+                        : `Permanently delete "${title}"? Its lessons, files and ${c.studentCount} enrollment(s) will be erased. Past payments are kept.`
+                      if (!window.confirm(warn)) return
+                      start(async () => {
+                        const res = await deleteCourseAction(c.slug)
+                        if (!res.ok) setError(res.error)
+                        router.refresh()
+                      })
+                    }}
+                  >
+                    <Trash2 className="size-4" />
                   </Button>
                 </div>
               </div>

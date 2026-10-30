@@ -11,6 +11,8 @@ import type { LessonView } from "@/lib/lms/queries"
 import { completeLessonAction } from "@/lib/lms/actions"
 import { EmptyState, FormError, ProgressBar, formatDateTime, liveWindow } from "@/components/lms/ui"
 import { Markdown } from "@/components/lms/markdown"
+import { ReportTeacher } from "@/components/lms/report-teacher"
+import { TeacherName } from "@/components/teachers/certified-badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -76,7 +78,12 @@ export function CoursePlayer({
         <div className="mt-4 rounded-2xl border border-border bg-card">
           <div className="border-b border-border p-4">
             <h1 className="font-heading font-semibold leading-snug">{localize(formation.title, locale)}</h1>
-            {formation.teacherName && <p className="mt-0.5 text-xs text-muted-foreground">{formation.teacherName}</p>}
+            {formation.teacherName && (
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                <TeacherName name={formation.teacherName} certified={formation.teacherCertified} />
+              </p>
+            )}
+            {isStudent && formation.teacherId && formation.teacherName && <ReportTeacher slug={formation.slug} teacherName={formation.teacherName} />}
             {isStudent && (
               <div className="mt-3 flex items-center gap-2">
                 <ProgressBar value={progress} />

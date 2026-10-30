@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useLanguage } from '@/lib/i18n/context'
 import { categoryLabels, type Formation, localize } from '@/lib/mock-data'
+import { TeacherName } from '@/components/teachers/certified-badge'
 
 const levelKey = {
   beginner: 'common.beginner',
@@ -58,7 +59,11 @@ export function FormationCard({ formation }: { formation: Formation }) {
           </h3>
         </Link>
 
-        {formation.teacherName && <p className="mt-1 text-xs text-muted-foreground">{formation.teacherName}</p>}
+        {formation.teacherName && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            <TeacherName name={formation.teacherName} certified={formation.teacherCertified} />
+          </p>
+        )}
 
         <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{localize(formation.summary, locale)}</p>
 

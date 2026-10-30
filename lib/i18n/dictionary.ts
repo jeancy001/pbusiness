@@ -354,6 +354,9 @@ export const dictionary = {
     'teacher.payouts': 'Revenus & retraits',
     'admin.payments': 'Paiements & retraits',
     'admin.events': 'Événements',
+    'admin.team': 'Équipe & signalements',
+    'nav.profile': 'Mon profil',
+    'staff.title': 'Administration adjointe',
   },
   en: {
     'brand.name': 'P Business Online',
@@ -681,6 +684,9 @@ export const dictionary = {
     'teacher.payouts': 'Earnings & payouts',
     'admin.payments': 'Payments & payouts',
     'admin.events': 'Events',
+    'admin.team': 'Team & reports',
+    'nav.profile': 'My profile',
+    'staff.title': 'Assistant admin',
   },
 } as const
 

@@ -5,12 +5,12 @@ import { isDbConfigured } from "@/lib/db/mongodb"
 import { payments, type PaymentDoc } from "@/lib/db/models"
 import { certificates } from "@/lib/db/lms"
 import { getSession } from "@/lib/auth/session"
-import { getFormationBySlug } from "@/lib/data/catalog"
+import { getFormationBySlug, isOnSale } from "@/lib/data/catalog"
 import { bestAttempt } from "@/lib/lms/queries"
 import { AI_COURSE_PRICE_USD, CERTIFICATE_PRICE_USD, CERTIFIER_NAME, EXAM_PASS_SCORE } from "@/lib/lms/catalog"
 import { findAiModule, findAiTrack } from "@/lib/lms/ai-tracks"
 import { getEvent } from "@/lib/events/data"
-import { teacherRevenueShare } from "@/lib/payments/fees"
+import { TEACHER_BADGE_DAYS, TEACHER_BADGE_PRICE_USD, teacherRevenueShare } from "@/lib/payments/fees"
 import { courseEarner } from "@/lib/payments/revenue-owner"
 import { SWYCHR_DIGITAL_CHARGE_RATE, convertFromUsd, customerPaysDigitalCharge } from "@/lib/payments/fx"
 import { normalizeMobile } from "@/lib/payments/mobile"
@@ -25,7 +25,7 @@ import {
 } from "@/lib/payments/swychr"
 
 const schema = z.object({
-  kind: z.enum(["formation", "subscription", "project", "event", "certificate", "ai_module"]),
+  kind: z.enum(["formation", "subscription", "project", "event", "certificate", "ai_module", "teacher_badge"]),
   targetSlug: z.string().trim().min(1).max(120).optional(),
   country: z.string().trim().length(2).transform((v) => v.toUpperCase()),
   paymentMethod: z.string().trim().min(1).max(40),
@@ -53,6 +53,7 @@ export async function POST(req: Request) {
     // Payments are always tied to an account so access can be granted.
     const session = await getSession()
     if (!session) return fail("Log in to complete your payment.", 401)
+    if (session.emailVerified === false) return fail("Vérifiez votre e-mail avant de payer. / Verify your email before paying.", 403)
 
     // ========================================================
     // SERVER-SIDE PRICE
@@ -64,7 +65,7 @@ export async function POST(req: Request) {
 
     if (kind === "formation") {
       const formation = targetSlug ? await getFormationBySlug(targetSlug) : null
-      if (!formation) return fail("Course not found.", 404)
+      if (!formation || !isOnSale(formation)) return fail("Course not found.", 404)
       amountUsd = formation.priceUsd
       label = { fr: formation.title.fr, en: formation.title.en }
       // Only teacher-created courses pay a teacher share; admin/AI courses are 100% platform revenue.
@@ -100,6 +101,14 @@ export async function POST(req: Request) {
       label = {
         fr: `Linko Academy — cours ${track.name.fr} (${track.modules.length} modules)`,
         en: `Linko Academy — ${track.name.en} course (${track.modules.length} modules)`,
+      }
+    } else if (kind === "teacher_badge") {
+      if (session.role !== "teacher") return fail("Only teachers can buy the Certified Teacher badge.", 403)
+      targetSlug = session.userId
+      amountUsd = TEACHER_BADGE_PRICE_USD
+      label = {
+        fr: `Badge Formateur certifié — ${TEACHER_BADGE_DAYS} jours`,
+        en: `Certified Teacher badge — ${TEACHER_BADGE_DAYS} days`,
       }
     } else {
       return fail("Project payments require an approved quote with a valid amount.", 400)

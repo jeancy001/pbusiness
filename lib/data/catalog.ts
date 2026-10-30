@@ -3,6 +3,7 @@ import { isDbConfigured } from "@/lib/db/mongodb"
 import { formations as formationsCol } from "@/lib/db/models"
 import { lessons } from "@/lib/db/lms"
 import { ratingSummaries } from "@/lib/lms/ratings"
+import { certifiedTeacherIds } from "@/lib/teachers/badge"
 import {
   formations as mockFormations,
   services as mockServices,
@@ -14,27 +15,53 @@ import {
 // courses are left out of the public catalog. Without a database, the
 // bundled catalog is served so the preview always renders.
 
-export type CatalogFormation = Formation & { hidden?: boolean }
+/** `teacherSuspended`: the teacher was suspended, so the course is off sale until reactivation. */
+export type CatalogFormation = Formation & { hidden?: boolean; deleted?: boolean; teacherSuspended?: boolean }
+
+/** Shown in the public catalog and open to new purchases. */
+export function isOnSale(f: CatalogFormation) {
+  return !f.hidden && !f.deleted && !f.teacherSuspended
+}
 
 async function merged(): Promise<CatalogFormation[]> {
   if (!isDbConfigured()) return mockFormations
   try {
     const docs = (await (await formationsCol()).find({}, { projection: { _id: 0 } }).toArray()) as CatalogFormation[]
     const stored = new Set(docs.map((d) => d.slug))
-    return [...docs, ...mockFormations.filter((f) => !stored.has(f.slug))]
+    // Deleted courses keep a tombstone so the bundled copy doesn't reappear.
+    return [...docs.filter((d) => !d.deleted), ...mockFormations.filter((f) => !stored.has(f.slug))]
   } catch {
     return mockFormations
   }
 }
 
-/** Public catalog (visible courses only), with live student ratings. */
+/** Flags courses whose teacher holds the Certified Teacher badge. */
+async function withBadges<T extends Formation>(list: T[]): Promise<T[]> {
+  const certified = await certifiedTeacherIds(list.map((f) => f.teacherId).filter(Boolean) as string[]).catch(() => new Set<string>())
+  return list.map((f) => ({ ...f, teacherCertified: Boolean(f.teacherId && certified.has(f.teacherId)) }))
+}
+
+/**
+ * Public catalog (visible courses only), with live student ratings and
+ * badges. Courses by certified teachers are listed first.
+ */
 export async function getAllFormations(): Promise<Formation[]> {
-  const visible = (await merged()).filter((f) => !f.hidden)
+  const visible = await withBadges((await merged()).filter(isOnSale))
   const summaries = await ratingSummaries(visible.map((f) => `formation:${f.slug}` as const))
-  return visible.map((f) => {
+  const rated = visible.map((f) => {
     const r = summaries.get(`formation:${f.slug}`)
     return r ? { ...f, rating: r.avg, ratingCount: r.count } : { ...f, ratingCount: 0 }
   })
+  return rated.sort((a, b) => Number(Boolean(b.teacherCertified)) - Number(Boolean(a.teacherCertified)))
+}
+
+/**
+ * Courses promoted on the homepage and by the AI assistant: platform
+ * courses and courses by certified teachers. Other teachers' courses
+ * only appear in the full catalog.
+ */
+export async function getFeaturedFormations(): Promise<Formation[]> {
+  return (await getAllFormations()).filter((f) => !f.teacherId || f.teacherCertified)
 }
 
 /**
@@ -64,8 +91,10 @@ export async function getFormationBySlug(slug: string): Promise<CatalogFormation
   }
   try {
     const col = await formationsCol()
-    const doc = await col.findOne({ slug }, { projection: { _id: 0 } })
-    return (doc as CatalogFormation) ?? mockFormations.find((f) => f.slug === slug) ?? null
+    const doc = (await col.findOne({ slug }, { projection: { _id: 0 } })) as CatalogFormation | null
+    if (doc?.deleted) return null
+    if (!doc) return mockFormations.find((f) => f.slug === slug) ?? null
+    return (await withBadges([doc]))[0]
   } catch {
     return mockFormations.find((f) => f.slug === slug) ?? null
   }

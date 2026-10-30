@@ -228,7 +228,7 @@ export function RequestPayoutForm({ available, mode = "teacher" }: { available: 
           hint={`${fr ? "Disponible" : "Available"} : ${usd(available)} · min. ${usd(minimum)}`}
         >
           <div className="flex gap-2">
-            <Input
+            <Input placeholder={fr ? "Ex. : 50" : "e.g. 50"}
               id="po-amount"
               type="number"
               min={minimum}

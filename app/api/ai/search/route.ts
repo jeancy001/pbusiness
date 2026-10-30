@@ -9,7 +9,7 @@ import {
 } from "@/lib/ai/config"
 
 import {
-  getAllFormations,
+  getFeaturedFormations,
   getServices,
 } from "@/lib/data/catalog"
 
@@ -132,7 +132,7 @@ export async function POST(req: Request) {
 
     // Load catalog data.
     const [formations, services] = await Promise.all([
-      getAllFormations(),
+      getFeaturedFormations(),
       Promise.resolve(getServices()),
     ])
 

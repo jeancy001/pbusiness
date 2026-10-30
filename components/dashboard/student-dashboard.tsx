@@ -18,6 +18,7 @@ import {
   Ticket,
   Sparkles,
   Trophy,
+  UserCircle,
   Video,
 } from "lucide-react"
 
@@ -39,13 +40,14 @@ import { EmptyState, Panel, ProgressBar, formatDate, formatDateTime, liveWindow 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 
-const nav: NavItem[] = [
+export const studentNav: NavItem[] = [
   { href: "/dashboard/student", labelKey: "dash.overview", icon: GraduationCap },
   { href: "/dashboard/student#courses", labelKey: "student.myFormations", icon: BookOpen },
   { href: "/dashboard/student#catalog", labelKey: "common.discoverFormations", icon: Plus },
   { href: "/dashboard/student#live", labelKey: "lms.upcomingLive", icon: Video },
   { href: "/dashboard/student#certificates", labelKey: "student.certificates", icon: Award },
   { href: "/academy", labelKey: "nav.academy", icon: Bot },
+  { href: "/dashboard/profile", labelKey: "nav.profile", icon: UserCircle },
 ]
 
 const primaryBtn = "bg-[#064E3B] text-white shadow-sm hover:bg-[#053D2E] dark:bg-emerald-700 dark:hover:bg-emerald-800"
@@ -75,7 +77,7 @@ export function StudentDashboard({
   const nextLive = live.find((s) => liveWindow(s.startAt, s.durationMin).joinable) ?? live[0]
 
   return (
-    <DashboardShell nav={nav} titleKey="student.title">
+    <DashboardShell nav={studentNav} titleKey="student.title">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label={t("student.myFormations")} value={String(courses.length)} icon={BookOpen} />
         <StatCard label={t("student.progress")} value={`${avgProgress}%`} icon={GraduationCap} />

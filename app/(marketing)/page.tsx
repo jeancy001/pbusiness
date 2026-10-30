@@ -6,10 +6,10 @@ import { Features } from "@/components/home/features"
 import { ServicesPreview } from "@/components/home/services-preview"
 import { LinkoPayBand } from "@/components/home/linko-pay-band"
 import { CtaSection } from "@/components/home/cta"
-import { getAllFormations } from "@/lib/data/catalog"
+import { getFeaturedFormations } from "@/lib/data/catalog"
 
 export default async function HomePage() {
-  const formations = await getAllFormations()
+  const formations = await getFeaturedFormations()
 
   return (
     <>

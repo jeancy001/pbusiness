@@ -15,6 +15,7 @@ import { EmptyState, Field, FormError, Panel, formatDate, selectClass } from "@/
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 
 const primaryBtn = "bg-[#064E3B] text-white shadow-sm hover:bg-[#053D2E] dark:bg-emerald-700 dark:hover:bg-emerald-800"
 
@@ -88,17 +89,17 @@ export function AdminTeachers({ teachers, formations }: { teachers: TeacherSumma
         <Panel title={t("admin.addTeacher")} icon={UserPlus}>
           <form action={create} className="space-y-4">
             <Field label={locale === "fr" ? "Nom complet" : "Full name"} htmlFor="t-name">
-              <Input id="t-name" name="name" required minLength={2} />
+              <Input placeholder={locale === "fr" ? "Ex. : Kwame Mensah" : "e.g. Kwame Mensah"} id="t-name" name="name" required minLength={2} />
             </Field>
             <Field label="Email" htmlFor="t-email">
-              <Input id="t-email" name="email" type="email" required />
+              <Input placeholder={locale === "fr" ? "formateur@exemple.com" : "teacher@example.com"} id="t-email" name="email" type="email" required />
             </Field>
             <Field
               label={locale === "fr" ? "Mot de passe temporaire" : "Temporary password"}
               htmlFor="t-pass"
               hint={locale === "fr" ? "8 caractères minimum. Communiquez-le au formateur." : "At least 8 characters. Share it with the teacher."}
             >
-              <Input id="t-pass" name="password" type="text" required minLength={8} autoComplete="off" />
+              <PasswordInput placeholder={locale === "fr" ? "8 caractères minimum" : "At least 8 characters"} id="t-pass" name="password" required minLength={8} autoComplete="off" />
             </Field>
             <Field label={locale === "fr" ? "Spécialité" : "Expertise"} htmlFor="t-exp">
               <Input id="t-exp" name="expertise" placeholder="Python, Twi, Marketing…" />

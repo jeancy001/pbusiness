@@ -6,6 +6,7 @@ import { grantAiTrack, issueCertificate } from "@/lib/lms/certificates"
 import { findAiTrack } from "@/lib/lms/ai-tracks"
 import { getEvent, issueEventTicket } from "@/lib/events/data"
 import { notifyAiModuleUnlocked, notifyCertificate, notifyPayment } from "@/lib/email/notify"
+import { extendBadge } from "@/lib/teachers/badge"
 
 // ============================================================
 // CALLBACK TOKENS
@@ -80,5 +81,7 @@ async function fulfil(payment: PaymentDoc) {
     await grantAiTrack(userId, targetSlug, reference)
     const track = await findAiTrack(targetSlug)
     if (track) notifyAiModuleUnlocked(userId, `${track.name.en} (${track.modules.length} modules)`, `${track.slug}-1`)
+  } else if (kind === "teacher_badge") {
+    await extendBadge(userId)
   }
 }

@@ -15,6 +15,10 @@ export function payoutFee(amountUsd: number) {
 }
 
 /** Admin commission on each sale of a teacher's own course; the teacher keeps the rest. */
+/** Certified Teacher badge: blue check, priority placement. 100% platform revenue. */
+export const TEACHER_BADGE_PRICE_USD = 7.9
+export const TEACHER_BADGE_DAYS = 30
+
 export const PLATFORM_COMMISSION_RATE = 0.1
 export const PLATFORM_COMMISSION_PERCENT = Math.round(PLATFORM_COMMISSION_RATE * 100)
 export const TEACHER_SHARE_PERCENT = 100 - PLATFORM_COMMISSION_PERCENT

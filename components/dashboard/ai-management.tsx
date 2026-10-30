@@ -182,7 +182,7 @@ export function AiManagement() {
             {t("admin.ai.quota")}
           </label>
 
-          <input
+          <input placeholder={locale === "fr" ? "Ex. : 40" : "e.g. 40"}
             id="quota"
             type="number"
             value={quota}

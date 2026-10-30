@@ -7,7 +7,7 @@ import {
 import { google } from "@ai-sdk/google"
 
 import {
-  getAllFormations,
+  getFeaturedFormations,
   getServices,
 } from "@/lib/data/catalog"
 
@@ -106,7 +106,7 @@ export async function POST(req: Request) {
 
     const [formations, services] =
       await Promise.all([
-        getAllFormations(),
+        getFeaturedFormations(),
         Promise.resolve(getServices()),
       ])
 

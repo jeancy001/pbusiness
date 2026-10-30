@@ -22,7 +22,8 @@ export type NavItem = {
 }
 
 const ROLE_LABEL: Record<string, { fr: string; en: string }> = {
-  admin: { fr: "Administrateur", en: "Administrator" },
+  admin: { fr: "Administrateur principal", en: "Main administrator" },
+  staff: { fr: "Administrateur adjoint", en: "Assistant admin" },
   teacher: { fr: "Formateur", en: "Teacher" },
   student: { fr: "Étudiant", en: "Student" },
   client: { fr: "Client", en: "Client" },

@@ -14,6 +14,7 @@ import {
   Users,
 } from "lucide-react"
 import { RatingSummary } from "@/components/lms/stars"
+import { CertifiedBadge } from "@/components/teachers/certified-badge"
 import { useI18n } from "@/lib/i18n/context"
 import {
   localize,
@@ -81,6 +82,15 @@ export function FormationDetail({
           >
             {localize(formation.title, locale)}
           </h1>
+
+          {formation.teacherName && (
+            <p className="mt-3 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              {locale === "fr" ? "Par" : "By"} <span className="font-medium text-foreground">{formation.teacherName}</span>
+              {formation.teacherCertified && (
+                <CertifiedBadge label className="rounded-full bg-[#1D9BF0]/10 px-2 py-0.5" />
+              )}
+            </p>
+          )}
 
           {/* Description */}
           <p className="mt-4 text-pretty text-lg leading-relaxed text-muted-foreground">

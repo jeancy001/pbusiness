@@ -9,16 +9,18 @@ import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { PasswordInput } from "@/components/ui/password-input"
 
 const roleRoute: Record<UserRole, string> = {
   student: "/dashboard/student",
   client: "/dashboard/client",
   teacher: "/dashboard/teacher",
   admin: "/dashboard/admin",
+  staff: "/dashboard/staff",
 }
 
 export function LoginForm() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { login } = useAuth()
   const router = useRouter()
 
@@ -37,7 +39,7 @@ export function LoginForm() {
     setLoading(false)
 
     if (res.ok) {
-      router.push(roleRoute[res.role as UserRole] ?? "/dashboard/student")
+      router.push(res.verified ? (roleRoute[res.role as UserRole] ?? "/dashboard/student") : "/verify-email")
       router.refresh()
     } else {
       setError(res.error)
@@ -70,8 +72,9 @@ export function LoginForm() {
             type="email"
             required
             value={email}
+            autoComplete="email"
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="vous@exemple.com"
+            placeholder={locale === "fr" ? "vous@exemple.com" : "you@example.com"}
           />
         </div>
 
@@ -90,12 +93,13 @@ export function LoginForm() {
             </Link>
           </div>
 
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             required
+            autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            placeholder={locale === "fr" ? "Votre mot de passe" : "Your password"}
           />
         </div>
 

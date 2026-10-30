@@ -27,7 +27,7 @@ export default async function FormationPage({
 }) {
   const { slug } = await params
   const formation = await getFormationBySlug(slug)
-  if (!formation) notFound()
+  if (!formation || formation.teacherSuspended) notFound()
   const rated = (await ratingSummaries([`formation:${formation.slug}`])).get(`formation:${formation.slug}`)
   return <FormationDetail formation={rated ? { ...formation, rating: rated.avg, ratingCount: rated.count } : { ...formation, ratingCount: 0 }} />
 }

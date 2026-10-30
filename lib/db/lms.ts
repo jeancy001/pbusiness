@@ -201,6 +201,48 @@ export interface RtcSignalDoc {
   createdAt: Date
 }
 
+/** A student's report about a teacher, reviewed by the main admin. */
+export interface TeacherReportDoc {
+  _id?: ObjectId
+  teacherId: string
+  reporterId: string
+  reporterName: string
+  formationSlug?: string
+  reason: "behavior" | "content" | "absent" | "fraud" | "other"
+  message: string
+  status: "open" | "resolved" | "dismissed"
+  createdAt: Date
+  resolvedAt?: Date
+}
+
+/** One-time 6-digit code sent by email. Only a hash is stored; expired codes are removed by a TTL index. */
+export interface AuthCodeDoc {
+  _id?: ObjectId
+  userId: string
+  purpose: "verify" | "reset" | "password"
+  codeHash: string
+  attempts: number
+  expiresAt: Date
+  createdAt: Date
+}
+
+/** A certified student asks to become a teacher; the main admin decides. */
+export interface TeacherApplicationDoc {
+  _id?: ObjectId
+  userId: string
+  name: string
+  email: string
+  expertise: string
+  motivation: string
+  experience?: string
+  certificateCodes: string[]
+  status: "pending" | "approved" | "rejected"
+  note?: string
+  createdAt: Date
+  reviewedAt?: Date
+  reviewedBy?: string
+}
+
 async function col<T extends object>(name: string): Promise<Collection<T>> {
   return (await getDb()).collection<T>(name)
 }
@@ -216,6 +258,9 @@ export const certificates = () => col<CertificateDoc>("certificates")
 export const aiModuleAccess = () => col<AiModuleAccessDoc>("ai_module_access")
 export const aiTracksCol = () => col<AiTrackDoc>("ai_tracks")
 export const payouts = () => col<PayoutDoc>("payouts")
+export const authCodes = () => col<AuthCodeDoc>("auth_codes")
+export const teacherApplications = () => col<TeacherApplicationDoc>("teacher_applications")
+export const teacherReports = () => col<TeacherReportDoc>("teacher_reports")
 export const rtcSignals = () => col<RtcSignalDoc>("rtc_signals")
 
 // UserDoc types _id as string, but Mongo stores ObjectIds.

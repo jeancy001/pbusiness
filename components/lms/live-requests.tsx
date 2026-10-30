@@ -128,7 +128,7 @@ export function LiveRequestsPanel({ role, requests, targets }: { role: "student"
           </Field>
           <div className="md:col-span-2">
             <Field label={fr ? "Message (facultatif)" : "Message (optional)"} htmlFor="lr-msg">
-              <Textarea id="lr-msg" name="message" maxLength={1000} className="min-h-16" />
+              <Textarea placeholder={fr ? "Ce que vous souhaitez travailler pendant la session…" : "What you want to work on during the session…"} id="lr-msg" name="message" maxLength={1000} className="min-h-16" />
             </Field>
           </div>
           <div className="flex justify-end md:col-span-2">

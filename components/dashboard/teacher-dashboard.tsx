@@ -4,13 +4,14 @@ import { useState, useTransition } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { BookOpen, CalendarClock, GraduationCap, LayoutDashboard, Plus, TrendingUp, Users, Video, Wallet, X } from "lucide-react"
+import { BookOpen, CalendarClock, GraduationCap, LayoutDashboard, Plus, TrendingUp, UserCircle, Users, Video, Wallet, X } from "lucide-react"
 
 import { useI18n } from "@/lib/i18n/context"
 import { TEACHER_SHARE_PERCENT } from "@/lib/payments/fees"
 import { categoryLabels, localize, type FormationCategory, type Level } from "@/lib/mock-data"
 import type { LiveRequestView, TeacherView } from "@/lib/lms/queries"
 import { LiveRequestsPanel } from "@/components/lms/live-requests"
+import { BadgeOffer } from "@/components/teachers/badge-offer"
 import { createCourseAction, updateCoursePriceAction } from "@/lib/lms/actions"
 import { DashboardShell, StatCard, type NavItem } from "@/components/dashboard/dashboard-shell"
 import { StudentsTable } from "@/components/dashboard/students-table"
@@ -29,6 +30,7 @@ export const teacherNav: NavItem[] = [
   { href: "/dashboard/teacher#students", labelKey: "teacher.myStudents", icon: Users },
   { href: "/dashboard/teacher#live", labelKey: "teacher.liveSessions", icon: Video },
   { href: "/dashboard/teacher/payouts", labelKey: "teacher.payouts", icon: Wallet },
+  { href: "/dashboard/profile", labelKey: "nav.profile", icon: UserCircle },
 ]
 
 const primaryBtn = "bg-[#064E3B] text-white shadow-sm hover:bg-[#053D2E] dark:bg-emerald-700 dark:hover:bg-emerald-800"
@@ -37,10 +39,12 @@ export function TeacherDashboard({
   data,
   earnings = [],
   liveRequests = [],
+  badge,
 }: {
   data: TeacherView
   earnings?: { month: string; usd: number }[]
   liveRequests?: LiveRequestView[]
+  badge?: { until: string | null; daysLeft: number }
 }) {
   const { t, locale } = useI18n()
   const [creating, setCreating] = useState(false)
@@ -54,6 +58,7 @@ export function TeacherDashboard({
 
   return (
     <DashboardShell nav={teacherNav} titleKey="teacher.title">
+      {badge && <BadgeOffer until={badge.until} daysLeft={badge.daysLeft} />}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label={t("teacher.myCourses")} value={String(courses.length)} icon={BookOpen} />
         <StatCard label={t("teacher.myStudents")} value={String(new Set(students.map((s) => s.userId)).size)} icon={Users} />
@@ -222,14 +227,14 @@ function NewCourseForm({ onDone }: { onDone: () => void }) {
         <ImageUpload />
       </div>
       <Field label={t("lms.title")} htmlFor="c-title">
-        <Input id="c-title" name="title" required minLength={4} />
+        <Input placeholder={locale === "fr" ? "Ex. : Excel pour les entreprises" : "e.g. Excel for business"} id="c-title" name="title" required minLength={4} />
       </Field>
       <Field label={t("common.price") + " (USD)"} htmlFor="c-price">
-        <Input id="c-price" name="priceUsd" type="number" min={0} step="0.01" defaultValue={19} required />
+        <Input placeholder={locale === "fr" ? "Ex. : 20" : "e.g. 20"} id="c-price" name="priceUsd" type="number" min={0} step="0.01" defaultValue={19} required />
       </Field>
       <div className="md:col-span-2">
         <Field label={locale === "fr" ? "Résumé" : "Summary"} htmlFor="c-summary">
-          <Textarea id="c-summary" name="summary" required minLength={10} className="min-h-16" />
+          <Textarea placeholder={locale === "fr" ? "Une phrase qui résume le cours" : "One sentence that sums up the course"} id="c-summary" name="summary" required minLength={10} className="min-h-16" />
         </Field>
       </div>
       <Field label={t("common.category")} htmlFor="c-cat">
@@ -298,6 +303,7 @@ function CoursePrice({ slug, price }: { slug: string; price: number }) {
       <div className="flex items-center gap-2">
         <span className="pl-1 text-sm text-muted-foreground">$</span>
         <Input
+          placeholder="20"
           aria-label={fr ? "Prix en USD" : "Price in USD"}
           type="number"
           min={0}

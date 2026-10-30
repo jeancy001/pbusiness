@@ -23,7 +23,9 @@ export function AdminPayments({
   teachers,
   wallets,
   revenue,
+  isOwner = false,
 }: {
+  isOwner?: boolean
   payouts: PayoutView[]
   pendingPayments: PendingPaymentView[]
   teachers: TeacherBalance[]
@@ -89,7 +91,17 @@ export function AdminPayments({
             </dl>
           </div>
         </Panel>
-        <RequestPayoutForm available={revenue.availableUsd} mode="platform" />
+        {isOwner ? (
+          <RequestPayoutForm available={revenue.availableUsd} mode="platform" />
+        ) : (
+          <Panel title={fr ? "Retirer les revenus" : "Withdraw revenue"} icon={Wallet}>
+            <p className="text-sm text-muted-foreground">
+              {fr
+                ? "Les revenus de la plateforme sont versés uniquement sur le compte du propriétaire de la plateforme. Seul ce compte peut effectuer un retrait."
+                : "Platform revenue is paid only to the platform owner's account. Only that account can make a withdrawal."}
+            </p>
+          </Panel>
+        )}
       </div>
 
       <div className="mt-6">

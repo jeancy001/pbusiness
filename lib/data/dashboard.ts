@@ -122,7 +122,7 @@ export async function getAdminDashboard(): Promise<AdminView | null> {
     const revenue = successPayments.reduce((sum, p) => sum + p.amountUsd, 0)
 
     const popularDocs = (await fCol
-      .find({}, { projection: { _id: 0 } })
+      .find({ deleted: { $ne: true } } as never, { projection: { _id: 0 } })
       .sort({ studentsCount: -1 })
       .limit(5)
       .toArray()) as Formation[]

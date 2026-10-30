@@ -20,6 +20,7 @@ export default async function LearnPage({
   const { slug } = await params
   const session = await getSession()
   if (!session) redirect("/login")
+  if (session.emailVerified === false) redirect("/verify-email")
 
   const formation = await getFormationBySlug(slug)
   if (!formation) notFound()

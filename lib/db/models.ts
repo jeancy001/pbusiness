@@ -16,6 +16,8 @@ export type Role =
   | "client"
   | "teacher"
   | "admin"
+  /** Assistant admin: adds teachers and sees user counts, never money. */
+  | "staff"
 
 export type Localized =
   LocalizedText
@@ -46,6 +48,21 @@ export interface UserDoc {
 
   /** Preferred language for emails (fr, en, tw, gaa, ee). */
   locale?: string
+
+  /**
+   * false until the 6-digit code emailed at sign-up is entered. Accounts
+   * created by an admin (and older accounts) have no value and count as verified.
+   */
+  emailVerified?: boolean
+
+  /** Sessions issued before this date are rejected (set on password change). */
+  passwordChangedAt?: Date
+
+  /** Teachers: the Certified Teacher badge (blue check) is active until this date. */
+  certifiedUntil?: Date
+
+  /** Set by the main admin; a suspended account cannot sign in. */
+  suspended?: { at: Date; by: string; reason?: string }
 
   createdAt: Date
 }
@@ -189,6 +206,8 @@ export type PaymentKind =
   | "event"
   | "certificate"
   | "ai_module"
+  /** A teacher buys 30 days of the Certified Teacher badge. */
+  | "teacher_badge"
 
 // ============================================================
 // PAYMENT STATUS
